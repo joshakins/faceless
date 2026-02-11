@@ -1,0 +1,71 @@
+// ── Client → Server ──
+
+export interface ClientEvents {
+  'message:send': {
+    channelId: string;
+    content: string;
+  };
+  'message:typing': {
+    channelId: string;
+  };
+  'channel:join': {
+    channelId: string;
+  };
+  'channel:leave': {
+    channelId: string;
+  };
+  'voice:join': {
+    channelId: string;
+  };
+  'voice:leave': {};
+  'dm:send': {
+    conversationId: string;
+    content: string;
+  };
+}
+
+// ── Server → Client ──
+
+export interface ServerEvents {
+  'message:new': {
+    message: import('./types.js').Message;
+    author: import('./types.js').User;
+  };
+  'message:typing': {
+    channelId: string;
+    userId: string;
+    username: string;
+  };
+  'presence:update': {
+    userId: string;
+    status: import('./types.js').PresenceStatus;
+    voiceChannelId: string | null;
+  };
+  'voice:token': {
+    token: string;
+    url: string;
+  };
+  'voice:participants': {
+    channelId: string;
+    participants: string[];
+  };
+  'dm:new': {
+    message: import('./types.js').DirectMessage;
+    author: import('./types.js').User;
+  };
+  'error': {
+    code: string;
+    message: string;
+  };
+}
+
+// ── Envelope ──
+
+export type ClientEventName = keyof ClientEvents;
+export type ServerEventName = keyof ServerEvents;
+
+export interface WsMessage<T = unknown> {
+  event: string;
+  data: T;
+  id?: string;
+}

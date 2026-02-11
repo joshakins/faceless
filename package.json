@@ -1,0 +1,26 @@
+{
+  "name": "faceless",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Private, friends-only voice & text chat",
+  "scripts": {
+    "dev:server": "pnpm --filter @faceless/server dev",
+    "dev:client": "pnpm --filter @faceless/client dev",
+    "build:shared": "pnpm --filter @faceless/shared build",
+    "build:server": "pnpm --filter @faceless/server build",
+    "build:client": "pnpm --filter @faceless/client build",
+    "build": "pnpm run build:shared && pnpm run build:server && pnpm run build:client",
+    "db:migrate": "pnpm --filter @faceless/server db:migrate"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "argon2",
+      "better-sqlite3",
+      "electron",
+      "esbuild"
+    ]
+  }
+}
