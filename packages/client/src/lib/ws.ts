@@ -1,5 +1,6 @@
 import type { WsMessage, ServerEventName, ServerEvents } from '@faceless/shared';
 import { useConnectionStore } from '../stores/connection.js';
+import { getAuthToken } from './api.js';
 
 type EventHandler<E extends ServerEventName> = (data: ServerEvents[E]) => void;
 
@@ -12,7 +13,9 @@ class WsClient {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
     const url = useConnectionStore.getState().getWsUrl();
-    this.ws = new WebSocket(url);
+    const token = getAuthToken();
+    if (!token) return;
+    this.ws = new WebSocket(`${url}?token=${encodeURIComponent(token)}`);
 
     this.ws.onopen = () => {
       console.log('[WS] Connected');

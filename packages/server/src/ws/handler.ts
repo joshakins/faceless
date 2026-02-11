@@ -1,10 +1,10 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server as HttpServer } from 'http';
-import { parse as parseCookie } from 'cookie';
 import { getDb } from '../db/index.js';
 import { nanoid } from 'nanoid';
 import type { WsMessage, ClientEventName, ClientEvents } from '@faceless/shared';
 import { presenceTracker } from './presence.js';
+import { validateSession } from '../auth/sessions.js';
 
 interface AuthenticatedSocket extends WebSocket {
   userId: string;
@@ -64,36 +64,23 @@ export function createWsServer(server: HttpServer): WebSocketServer {
     const socket = ws as AuthenticatedSocket;
     socket.isAlive = true;
 
-    // Authenticate via cookie
-    const cookieHeader = req.headers.cookie;
-    if (!cookieHeader) {
-      socket.close(4001, 'No session cookie');
+    // Authenticate via token query parameter
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const token = url.searchParams.get('token');
+    if (!token) {
+      socket.close(4001, 'No auth token');
       return;
     }
 
-    const cookies = parseCookie(cookieHeader);
-    const sessionId = cookies.session;
-    if (!sessionId) {
-      socket.close(4001, 'No session cookie');
-      return;
-    }
-
-    const db = getDb();
-    const now = Math.floor(Date.now() / 1000);
-    const row = db.prepare(`
-      SELECT s.id as session_id, u.id as user_id, u.username
-      FROM sessions s JOIN users u ON u.id = s.user_id
-      WHERE s.id = ? AND s.expires_at > ?
-    `).get(sessionId, now) as { session_id: string; user_id: string; username: string } | undefined;
-
-    if (!row) {
+    const session = validateSession(token);
+    if (!session) {
       socket.close(4001, 'Invalid session');
       return;
     }
 
-    socket.userId = row.user_id;
-    socket.username = row.username;
-    socket.sessionId = row.session_id;
+    socket.userId = session.userId;
+    socket.username = session.username;
+    socket.sessionId = session.sessionId;
 
     // Track connection
     if (!clients.has(socket.userId)) {

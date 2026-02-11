@@ -40,8 +40,27 @@ export function deleteUserSessions(userId: string): void {
   db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
 }
 
+export function validateSession(sessionId: string): { userId: string; username: string; sessionId: string } | null {
+  const db = getDb();
+  const now = Math.floor(Date.now() / 1000);
+
+  const row = db.prepare(`
+    SELECT s.id as session_id, u.id as user_id, u.username
+    FROM sessions s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.id = ? AND s.expires_at > ?
+  `).get(sessionId, now) as { session_id: string; user_id: string; username: string } | undefined;
+
+  if (!row) return null;
+  return { userId: row.user_id, username: row.username, sessionId: row.session_id };
+}
+
 export function sessionMiddleware(req: Request, res: Response, next: NextFunction): void {
-  const sessionId = req.cookies?.session;
+  // Support Authorization: Bearer <token> header (primary) or cookie fallback
+  const authHeader = req.headers.authorization;
+  const sessionId = authHeader?.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : req.cookies?.session;
 
   if (!sessionId) {
     res.status(401).json({ error: 'Not authenticated' });

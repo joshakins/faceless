@@ -1,9 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 
-// Allow sameSite=none cookies over HTTP (needed for file:// -> http:// cross-origin requests)
-app.commandLine.appendSwitch('disable-features', 'SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure');
-
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {

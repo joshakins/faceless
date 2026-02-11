@@ -36,15 +36,9 @@ authRouter.post('/register', async (req, res) => {
     const passwordHash = await hashPassword(password);
     db.prepare('INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)').run(id, username, passwordHash);
 
-    const sessionId = createSession(id);
+    const token = createSession(id);
 
-    res.cookie('session', sessionId, {
-      httpOnly: true,
-      sameSite: 'none',
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
-
-    res.status(201).json({ user: { id, username } });
+    res.status(201).json({ user: { id, username }, token });
   } catch (err) {
     console.error('Registration error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -76,15 +70,9 @@ authRouter.post('/login', async (req, res) => {
       return;
     }
 
-    const sessionId = createSession(user.id);
+    const token = createSession(user.id);
 
-    res.cookie('session', sessionId, {
-      httpOnly: true,
-      sameSite: 'none',
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
-
-    res.json({ user: { id: user.id, username: user.username } });
+    res.json({ user: { id: user.id, username: user.username }, token });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -95,7 +83,6 @@ authRouter.post('/logout', sessionMiddleware, (req, res) => {
   if (req.sessionId) {
     deleteSession(req.sessionId);
   }
-  res.clearCookie('session');
   res.json({ ok: true });
 });
 
