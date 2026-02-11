@@ -40,7 +40,8 @@ authRouter.post('/register', async (req, res) => {
 
     res.cookie('session', sessionId, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
+      secure: true,
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
@@ -80,7 +81,8 @@ authRouter.post('/login', async (req, res) => {
 
     res.cookie('session', sessionId, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
+      secure: true,
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
