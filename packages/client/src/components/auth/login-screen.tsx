@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../../stores/auth.js';
 import { useConnectionStore } from '../../stores/connection.js';
+import logoSrc from '../../assets/faceless-logo.png';
 
 export function LoginScreen() {
   const [isRegister, setIsRegister] = useState(false);
@@ -39,6 +40,7 @@ export function LoginScreen() {
   return (
     <div className="flex items-center justify-center h-screen bg-gray-900">
       <div className="w-full max-w-sm p-8 bg-gray-800 rounded-lg shadow-xl">
+        <img src={logoSrc} alt="Faceless" className="w-20 h-20 mx-auto mb-4 object-contain" />
         <h1 className="text-2xl font-bold text-center text-white mb-2">Faceless</h1>
         <p className="text-gray-400 text-center text-sm mb-6">
           {isRegister ? 'Create an account' : 'Welcome back'}
