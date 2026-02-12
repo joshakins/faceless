@@ -106,6 +106,25 @@ serversRouter.post('/join', (req, res) => {
   res.status(201).json({ serverId: result.serverId, alreadyMember: false });
 });
 
+// Delete a server (owner only)
+serversRouter.delete('/:serverId', (req, res) => {
+  const db = getDb();
+  const server = db.prepare('SELECT owner_id FROM servers WHERE id = ?').get(req.params.serverId) as { owner_id: string } | undefined;
+
+  if (!server) {
+    res.status(404).json({ error: 'Server not found' });
+    return;
+  }
+
+  if (server.owner_id !== req.user!.id) {
+    res.status(403).json({ error: 'Only the server owner can delete a server' });
+    return;
+  }
+
+  db.prepare('DELETE FROM servers WHERE id = ?').run(req.params.serverId);
+  res.json({ ok: true });
+});
+
 // Get server members
 serversRouter.get('/:serverId/members', (req, res) => {
   const db = getDb();
