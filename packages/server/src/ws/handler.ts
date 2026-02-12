@@ -42,6 +42,34 @@ export function broadcastToChannel(channelId: string, event: string, data: unkno
   }
 }
 
+function getUserServerIds(userId: string): string[] {
+  const db = getDb();
+  const rows = db.prepare(
+    'SELECT server_id FROM server_members WHERE user_id = ?'
+  ).all(userId) as { server_id: string }[];
+  return rows.map(r => r.server_id);
+}
+
+function broadcastToServer(serverId: string, event: string, data: unknown, excludeUserId?: string): void {
+  const db = getDb();
+  const members = db.prepare(
+    'SELECT user_id FROM server_members WHERE server_id = ?'
+  ).all(serverId) as { user_id: string }[];
+
+  const message = JSON.stringify({ event, data });
+  for (const member of members) {
+    if (member.user_id === excludeUserId) continue;
+    const sockets = clients.get(member.user_id);
+    if (sockets) {
+      for (const socket of sockets) {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(message);
+        }
+      }
+    }
+  }
+}
+
 export function createWsServer(server: HttpServer): WebSocketServer {
   const wss = new WebSocketServer({ server, path: '/ws' });
 
@@ -89,6 +117,41 @@ export function createWsServer(server: HttpServer): WebSocketServer {
     clients.get(socket.userId)!.add(socket);
     presenceTracker.setOnline(socket.userId);
 
+    // Broadcast online status to all server members (including self)
+    const userServers = getUserServerIds(socket.userId);
+    for (const serverId of userServers) {
+      broadcastToServer(serverId, 'presence:update', {
+        userId: socket.userId,
+        status: 'online',
+        voiceChannelId: null,
+      });
+    }
+
+    // Send initial presence sync — tell this user who is already online
+    const coMemberIds = new Set<string>();
+    const db = getDb();
+    for (const serverId of userServers) {
+      const members = db.prepare(
+        'SELECT user_id FROM server_members WHERE server_id = ?'
+      ).all(serverId) as { user_id: string }[];
+      for (const m of members) {
+        if (m.user_id !== socket.userId) coMemberIds.add(m.user_id);
+      }
+    }
+    for (const memberId of coMemberIds) {
+      const presence = presenceTracker.getPresence(memberId);
+      if (presence.status !== 'offline') {
+        socket.send(JSON.stringify({
+          event: 'presence:update',
+          data: {
+            userId: presence.userId,
+            status: presence.status,
+            voiceChannelId: presence.voiceChannelId,
+          },
+        }));
+      }
+    }
+
     socket.on('pong', () => {
       socket.isAlive = true;
     });
@@ -109,6 +172,16 @@ export function createWsServer(server: HttpServer): WebSocketServer {
         if (userSockets.size === 0) {
           clients.delete(socket.userId);
           presenceTracker.setOffline(socket.userId);
+
+          // Broadcast offline status to all server members
+          const offlineServers = getUserServerIds(socket.userId);
+          for (const serverId of offlineServers) {
+            broadcastToServer(serverId, 'presence:update', {
+              userId: socket.userId,
+              status: 'offline',
+              voiceChannelId: null,
+            });
+          }
         }
       }
     });

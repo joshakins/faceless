@@ -9,3 +9,5 @@ release/
 .env.local
 .DS_Store
 Thumbs.db
+install/linux/Faceless-0.1.0.AppImage
+install/windows/Faceless-0.1.0-portable.exe

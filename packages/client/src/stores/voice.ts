@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import { Room, RoomEvent, Track, RemoteTrackPublication, RemoteParticipant } from 'livekit-client';
+import { Room, RoomEvent, Track, RemoteTrackPublication, RemoteParticipant, Participant } from 'livekit-client';
 import { api } from '../lib/api.js';
 
 interface VoiceState {
   room: Room | null;
   activeVoiceChannelId: string | null;
   participants: string[];
+  speakingParticipantIds: Set<string>;
   isMuted: boolean;
   isDeafened: boolean;
   joinVoice: (channelId: string) => Promise<void>;
@@ -18,6 +19,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   room: null,
   activeVoiceChannelId: null,
   participants: [],
+  speakingParticipantIds: new Set(),
   isMuted: false,
   isDeafened: false,
 
@@ -47,8 +49,12 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       }
     });
 
+    room.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
+      set({ speakingParticipantIds: new Set(speakers.map((s) => s.identity)) });
+    });
+
     room.on(RoomEvent.Disconnected, () => {
-      set({ room: null, activeVoiceChannelId: null, participants: [] });
+      set({ room: null, activeVoiceChannelId: null, participants: [], speakingParticipantIds: new Set() });
     });
 
     await room.connect(url, token);
@@ -68,7 +74,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     if (room) {
       room.disconnect();
     }
-    set({ room: null, activeVoiceChannelId: null, participants: [], isMuted: false, isDeafened: false });
+    set({ room: null, activeVoiceChannelId: null, participants: [], speakingParticipantIds: new Set(), isMuted: false, isDeafened: false });
   },
 
   toggleMute: () => {

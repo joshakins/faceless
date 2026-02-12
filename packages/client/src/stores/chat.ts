@@ -25,6 +25,7 @@ interface ChatState {
   sendTyping: () => void;
   createServer: (name: string) => Promise<void>;
   joinServer: (code: string) => Promise<void>;
+  deleteServer: (serverId: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -76,6 +77,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   joinServer: async (code) => {
     await api.joinServer(code);
+    await get().loadServers();
+  },
+
+  deleteServer: async (serverId) => {
+    await api.deleteServer(serverId);
+    if (get().activeServerId === serverId) {
+      set({ activeServerId: null, activeChannelId: null, channels: [], messages: [] });
+    }
     await get().loadServers();
   },
 }));

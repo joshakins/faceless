@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useChatStore } from '../../stores/chat.js';
 import { useAuthStore } from '../../stores/auth.js';
 
@@ -8,11 +8,26 @@ export function ServerSidebar() {
   const setActiveServer = useChatStore((s) => s.setActiveServer);
   const createServer = useChatStore((s) => s.createServer);
   const joinServer = useChatStore((s) => s.joinServer);
+  const deleteServer = useChatStore((s) => s.deleteServer);
   const logout = useAuthStore((s) => s.logout);
+  const currentUser = useAuthStore((s) => s.user);
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [input, setInput] = useState('');
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; serverId: string; serverName: string } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ serverId: string; serverName: string } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleClick = () => setContextMenu(null);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [contextMenu]);
 
   const handleCreate = async () => {
     if (!input.trim()) return;
@@ -28,12 +43,25 @@ export function ServerSidebar() {
     setShowJoin(false);
   };
 
+  const handleContextMenu = (e: React.MouseEvent, server: { id: string; name: string; ownerId: string }) => {
+    e.preventDefault();
+    if (server.ownerId !== currentUser?.id) return; // Only show for owner
+    setContextMenu({ x: e.clientX, y: e.clientY, serverId: server.id, serverName: server.name });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!showDeleteConfirm) return;
+    await deleteServer(showDeleteConfirm.serverId);
+    setShowDeleteConfirm(null);
+  };
+
   return (
     <div className="w-[72px] bg-gray-950 flex flex-col items-center py-3 gap-2 shrink-0">
       {servers.map((server) => (
         <button
           key={server.id}
           onClick={() => setActiveServer(server.id)}
+          onContextMenu={(e) => handleContextMenu(e, server)}
           className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-bold transition-all hover:rounded-xl ${
             activeServerId === server.id
               ? 'bg-indigo-600 text-white rounded-xl'
@@ -76,6 +104,25 @@ export function ServerSidebar() {
         ✕
       </button>
 
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 z-50 min-w-[160px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            onClick={() => {
+              setShowDeleteConfirm({ serverId: contextMenu.serverId, serverName: contextMenu.serverName });
+              setContextMenu(null);
+            }}
+            className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-gray-800 hover:text-red-300 transition-colors"
+          >
+            Delete Server
+          </button>
+        </div>
+      )}
+
       {/* Modal for create/join */}
       {(showCreate || showJoin) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowCreate(false); setShowJoin(false); }}>
@@ -106,6 +153,32 @@ export function ServerSidebar() {
                 className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors"
               >
                 {showCreate ? 'Create' : 'Join'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowDeleteConfirm(null)}>
+          <div className="bg-gray-800 rounded-lg p-6 w-80" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-white mb-2">Delete Server</h2>
+            <p className="text-gray-400 text-sm mb-4">
+              Are you sure you want to delete <span className="text-white font-semibold">{showDeleteConfirm.serverName}</span>? This will permanently delete all channels and messages. This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+              >
+                Delete
               </button>
             </div>
           </div>

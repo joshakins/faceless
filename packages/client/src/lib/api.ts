@@ -79,6 +79,9 @@ export const api = {
   getMembers: (serverId: string) =>
     request<{ members: Array<{ id: string; username: string }> }>(`/servers/${serverId}/members`),
 
+  deleteServer: (serverId: string) =>
+    request<{ ok: boolean }>(`/servers/${serverId}`, { method: 'DELETE' }),
+
   // Channels
   getChannels: (serverId: string) =>
     request<{ channels: Array<{ id: string; name: string; type: 'text' | 'voice'; serverId: string }> }>(`/channels/${serverId}`),
