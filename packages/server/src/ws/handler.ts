@@ -117,14 +117,14 @@ export function createWsServer(server: HttpServer): WebSocketServer {
     clients.get(socket.userId)!.add(socket);
     presenceTracker.setOnline(socket.userId);
 
-    // Broadcast online status to all server members
+    // Broadcast online status to all server members (including self)
     const userServers = getUserServerIds(socket.userId);
     for (const serverId of userServers) {
       broadcastToServer(serverId, 'presence:update', {
         userId: socket.userId,
         status: 'online',
         voiceChannelId: null,
-      }, socket.userId);
+      });
     }
 
     // Send initial presence sync — tell this user who is already online
