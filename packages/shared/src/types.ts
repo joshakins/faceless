@@ -35,6 +35,7 @@ export interface Message {
   content: string;
   createdAt: number;
   attachment?: Attachment | null;
+  gifUrl?: string | null;
 }
 
 export interface DirectMessage {

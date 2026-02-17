@@ -48,6 +48,15 @@ export function MessageList() {
                 />
               </div>
             )}
+            {msg.gifUrl && (
+              <div className="mt-1">
+                <img
+                  src={msg.gifUrl}
+                  alt="GIF"
+                  className="max-w-sm max-h-80 rounded border border-gray-700"
+                />
+              </div>
+            )}
           </div>
         );
       })}

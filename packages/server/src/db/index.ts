@@ -113,4 +113,12 @@ function runMigrations(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
   `);
+
+  // Add gif_url column to messages (idempotent migration)
+  const hasGifUrl = db.prepare(
+    "SELECT 1 FROM pragma_table_info('messages') WHERE name = 'gif_url'"
+  ).get();
+  if (!hasGifUrl) {
+    db.exec("ALTER TABLE messages ADD COLUMN gif_url TEXT");
+  }
 }

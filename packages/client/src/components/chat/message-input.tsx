@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useChatStore } from '../../stores/chat.js';
+import { GifPicker } from './gif-picker.js';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -9,6 +10,7 @@ export function MessageInput() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [gifPickerOpen, setGifPickerOpen] = useState(false);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const sendTyping = useChatStore((s) => s.sendTyping);
   const typingThrottleRef = useRef<number>(0);
@@ -110,6 +112,20 @@ export function MessageInput() {
           onChange={handleFileSelect}
           className="hidden"
         />
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setGifPickerOpen((prev) => !prev)}
+            className="text-gray-400 hover:text-white px-1.5 py-1 rounded hover:bg-gray-600 transition-colors text-xs font-bold"
+            title="Send a GIF"
+          >
+            GIF
+          </button>
+          {gifPickerOpen && (
+            <GifPicker onClose={() => setGifPickerOpen(false)} />
+          )}
+        </div>
 
         <input
           ref={textInputRef}

@@ -5,6 +5,7 @@ export interface ClientEvents {
     channelId: string;
     content: string;
     attachmentId?: string;
+    gifUrl?: string;
   };
   'message:typing': {
     channelId: string;

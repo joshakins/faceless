@@ -19,6 +19,7 @@ interface ChatMessage {
   content: string;
   createdAt: number;
   attachment?: ChatAttachment | null;
+  gifUrl?: string | null;
 }
 
 interface ChatState {
@@ -32,6 +33,7 @@ interface ChatState {
   setActiveChannel: (channelId: string) => Promise<void>;
   loadServers: () => Promise<void>;
   sendMessage: (content: string, file?: File) => Promise<void>;
+  sendGif: (gifUrl: string) => void;
   sendTyping: () => void;
   createServer: (name: string) => Promise<void>;
   joinServer: (code: string) => Promise<void>;
@@ -85,6 +87,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
 
+  sendGif: (gifUrl) => {
+    const channelId = get().activeChannelId;
+    if (!channelId || !gifUrl) return;
+    wsClient.send('message:send', { channelId, content: '', gifUrl });
+  },
+
   sendTyping: () => {
     const channelId = get().activeChannelId;
     if (!channelId) return;
@@ -123,6 +131,7 @@ wsClient.on('message:new', (data) => {
         content: data.message.content,
         createdAt: data.message.createdAt,
         attachment: data.message.attachment || null,
+        gifUrl: data.message.gifUrl || null,
       }],
     });
   }

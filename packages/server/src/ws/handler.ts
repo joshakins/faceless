@@ -199,9 +199,9 @@ function handleClientEvent<E extends ClientEventName>(
 
   switch (event) {
     case 'message:send': {
-      const { channelId, content, attachmentId } = data as ClientEvents['message:send'];
+      const { channelId, content, attachmentId, gifUrl } = data as ClientEvents['message:send'];
       if (!channelId) return;
-      if (!content?.trim() && !attachmentId) return;
+      if (!content?.trim() && !attachmentId && !gifUrl) return;
 
       // Verify access
       const access = db.prepare(`
@@ -213,8 +213,8 @@ function handleClientEvent<E extends ClientEventName>(
 
       const id = nanoid();
       const createdAt = Math.floor(Date.now() / 1000);
-      db.prepare('INSERT INTO messages (id, channel_id, author_id, content, created_at) VALUES (?, ?, ?, ?, ?)').run(
-        id, channelId, socket.userId, content || '', createdAt
+      db.prepare('INSERT INTO messages (id, channel_id, author_id, content, gif_url, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+        id, channelId, socket.userId, content || '', gifUrl || null, createdAt
       );
 
       // Link attachment to message if provided
@@ -242,7 +242,7 @@ function handleClientEvent<E extends ClientEventName>(
       }
 
       broadcastToChannel(channelId, 'message:new', {
-        message: { id, channelId, authorId: socket.userId, content: content || '', createdAt, attachment },
+        message: { id, channelId, authorId: socket.userId, content: content || '', createdAt, attachment, gifUrl: gifUrl || null },
         author: { id: socket.userId, username: socket.username, createdAt: 0 },
       });
       break;
