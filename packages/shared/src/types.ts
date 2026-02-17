@@ -19,12 +19,23 @@ export interface Channel {
   createdAt: number;
 }
 
+export interface Attachment {
+  id: string;
+  messageId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  url: string;
+}
+
 export interface Message {
   id: string;
   channelId: string;
   authorId: string;
   content: string;
   createdAt: number;
+  attachment?: Attachment | null;
+  gifUrl?: string | null;
 }
 
 export interface DirectMessage {

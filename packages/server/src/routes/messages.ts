@@ -1,8 +1,44 @@
 import { Router, type IRouter } from 'express';
-import { nanoid } from 'nanoid';
 import { getDb } from '../db/index.js';
 
 export const messagesRouter: IRouter = Router();
+
+interface MessageRow {
+  id: string;
+  channelId: string;
+  authorId: string;
+  content: string;
+  createdAt: number;
+  authorUsername: string;
+  attachmentId: string | null;
+  attachmentFilename: string | null;
+  attachmentMimeType: string | null;
+  attachmentSize: number | null;
+  attachmentPath: string | null;
+  gifUrl: string | null;
+}
+
+function mapRows(rows: MessageRow[]) {
+  return rows.map((row) => ({
+    id: row.id,
+    channelId: row.channelId,
+    authorId: row.authorId,
+    content: row.content,
+    createdAt: row.createdAt,
+    authorUsername: row.authorUsername,
+    attachment: row.attachmentId
+      ? {
+          id: row.attachmentId,
+          messageId: row.id,
+          filename: row.attachmentFilename!,
+          mimeType: row.attachmentMimeType!,
+          size: row.attachmentSize!,
+          url: `/api/files/${row.attachmentPath}`,
+        }
+      : null,
+    gifUrl: row.gifUrl,
+  }));
+}
 
 // Get messages for a channel (paginated)
 messagesRouter.get('/:channelId', (req, res) => {
@@ -22,30 +58,40 @@ messagesRouter.get('/:channelId', (req, res) => {
     return;
   }
 
-  let messages;
+  let rows: MessageRow[];
   if (before) {
-    messages = db.prepare(`
+    rows = db.prepare(`
       SELECT m.id, m.channel_id as channelId, m.author_id as authorId,
              m.content, m.created_at as createdAt,
-             u.username as authorUsername
+             u.username as authorUsername,
+             a.id as attachmentId, a.filename as attachmentFilename,
+             a.mime_type as attachmentMimeType, a.size as attachmentSize,
+             a.storage_path as attachmentPath,
+             m.gif_url as gifUrl
       FROM messages m
       JOIN users u ON u.id = m.author_id
+      LEFT JOIN attachments a ON a.message_id = m.id
       WHERE m.channel_id = ? AND m.created_at < ?
       ORDER BY m.created_at DESC
       LIMIT ?
-    `).all(req.params.channelId, before, limit);
+    `).all(req.params.channelId, before, limit) as MessageRow[];
   } else {
-    messages = db.prepare(`
+    rows = db.prepare(`
       SELECT m.id, m.channel_id as channelId, m.author_id as authorId,
              m.content, m.created_at as createdAt,
-             u.username as authorUsername
+             u.username as authorUsername,
+             a.id as attachmentId, a.filename as attachmentFilename,
+             a.mime_type as attachmentMimeType, a.size as attachmentSize,
+             a.storage_path as attachmentPath,
+             m.gif_url as gifUrl
       FROM messages m
       JOIN users u ON u.id = m.author_id
+      LEFT JOIN attachments a ON a.message_id = m.id
       WHERE m.channel_id = ?
       ORDER BY m.created_at DESC
       LIMIT ?
-    `).all(req.params.channelId, limit);
+    `).all(req.params.channelId, limit) as MessageRow[];
   }
 
-  res.json({ messages: messages.reverse() });
+  res.json({ messages: mapRows(rows).reverse() });
 });

@@ -2,6 +2,15 @@ import { create } from 'zustand';
 import { api } from '../lib/api.js';
 import { wsClient } from '../lib/ws.js';
 
+interface ChatAttachment {
+  id: string;
+  messageId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  url: string;
+}
+
 interface ChatMessage {
   id: string;
   channelId: string;
@@ -9,6 +18,8 @@ interface ChatMessage {
   authorUsername: string;
   content: string;
   createdAt: number;
+  attachment?: ChatAttachment | null;
+  gifUrl?: string | null;
 }
 
 interface ChatState {
@@ -21,7 +32,8 @@ interface ChatState {
   setActiveServer: (serverId: string) => Promise<void>;
   setActiveChannel: (channelId: string) => Promise<void>;
   loadServers: () => Promise<void>;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string, file?: File) => Promise<void>;
+  sendGif: (gifUrl: string) => void;
   sendTyping: () => void;
   createServer: (name: string) => Promise<void>;
   joinServer: (code: string) => Promise<void>;
@@ -58,10 +70,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ messages });
   },
 
-  sendMessage: (content) => {
+  sendMessage: async (content, file) => {
     const channelId = get().activeChannelId;
-    if (!channelId || !content.trim()) return;
-    wsClient.send('message:send', { channelId, content: content.trim() });
+    if (!channelId || (!content.trim() && !file)) return;
+
+    let attachmentId: string | undefined;
+    if (file) {
+      const result = await api.uploadFile(file);
+      attachmentId = result.id;
+    }
+
+    wsClient.send('message:send', {
+      channelId,
+      content: content.trim(),
+      attachmentId,
+    });
+  },
+
+  sendGif: (gifUrl) => {
+    const channelId = get().activeChannelId;
+    if (!channelId || !gifUrl) return;
+    wsClient.send('message:send', { channelId, content: '', gifUrl });
   },
 
   sendTyping: () => {
@@ -101,6 +130,8 @@ wsClient.on('message:new', (data) => {
         authorUsername: data.author.username,
         content: data.message.content,
         createdAt: data.message.createdAt,
+        attachment: data.message.attachment || null,
+        gifUrl: data.message.gifUrl || null,
       }],
     });
   }

@@ -98,8 +98,27 @@ function runMigrations(db: Database.Database): void {
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
 
+    CREATE TABLE IF NOT EXISTS attachments (
+      id TEXT PRIMARY KEY,
+      message_id TEXT REFERENCES messages(id) ON DELETE CASCADE,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      storage_path TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_dm_conversation ON direct_messages(conversation_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
   `);
+
+  // Add gif_url column to messages (idempotent migration)
+  const hasGifUrl = db.prepare(
+    "SELECT 1 FROM pragma_table_info('messages') WHERE name = 'gif_url'"
+  ).get();
+  if (!hasGifUrl) {
+    db.exec("ALTER TABLE messages ADD COLUMN gif_url TEXT");
+  }
 }

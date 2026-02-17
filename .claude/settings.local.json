@@ -45,7 +45,24 @@
       "Bash(git checkout:*)",
       "Bash(find:*)",
       "Bash(CI=true \"C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd\" install:*)",
-      "Bash(\"C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd\" run build:shared)"
+      "Bash(\"C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd\" run build:shared)",
+      "Bash(C:Usersjosh.akinsAppDataRoamingnpmpnpm.cmd add multer)",
+      "Bash(C:Usersjosh.akinsAppDataRoamingnpmpnpm.cmd add -D @types/multer)",
+      "Bash(C:Usersjosh.akinsAppDataRoamingnpmpnpm.cmd add multer --filter @faceless/server)",
+      "Bash(C:Usersjosh.akinsAppDataRoamingnpmpnpm.cmd add -D @types/multer --filter @faceless/server)",
+      "Bash(cmd.exe /c \"C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd add multer --filter @faceless/server && C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd add -D @types/multer --filter @faceless/server\")",
+      "Bash(cmd.exe /c \"cd C:\\\\repos\\\\faceless\\\\packages\\\\server && C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd add multer\")",
+      "Bash(cmd.exe /c \"cd /d C:\\\\repos\\\\faceless && C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd add multer --filter @faceless/server 2>&1\")",
+      "Bash(powershell.exe -Command \"cd C:\\\\repos\\\\faceless; C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd add multer --filter @faceless/server\")",
+      "Bash(powershell.exe -Command \"cd C:\\\\repos\\\\faceless; C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd add -D @types/multer --filter @faceless/server\")",
+      "Bash(powershell.exe -Command \"cd C:\\\\repos\\\\faceless\\\\packages\\\\shared; C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd run build 2>&1\")",
+      "Bash(powershell.exe -Command \"cd C:\\\\repos\\\\faceless\\\\packages\\\\server; C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd run build 2>&1\")",
+      "Bash(powershell.exe -Command \"cd C:\\\\repos\\\\faceless\\\\packages\\\\client; C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd run build 2>&1\")",
+      "Bash(powershell.exe:*)",
+      "Bash(cmd.exe /c \"netstat -ano | findstr :3000 | findstr LISTENING\")",
+      "WebFetch(domain:docs.klipy.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:klipy.com)"
     ]
   }
 }
