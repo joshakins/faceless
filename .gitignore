@@ -5,6 +5,8 @@ release/
 *.db
 *.db-journal
 *.db-wal
+*.db-shm
+packages/server/data/uploads/
 .env
 .env.local
 .DS_Store

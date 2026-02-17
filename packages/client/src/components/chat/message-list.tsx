@@ -1,10 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { useChatStore } from '../../stores/chat.js';
+import { useConnectionStore } from '../../stores/connection.js';
 
 export function MessageList() {
   const messages = useChatStore((s) => s.messages);
   const typingUsers = useChatStore((s) => s.typingUsers);
+  const serverUrl = useConnectionStore((s) => s.serverUrl);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const httpBase = `http://${serverUrl}`;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -30,7 +34,20 @@ export function MessageList() {
                 <span className="text-xs text-gray-500">{time}</span>
               </div>
             )}
-            <p className="text-gray-300 text-sm select-text pl-0">{msg.content}</p>
+            {msg.content && (
+              <p className="text-gray-300 text-sm select-text pl-0">{msg.content}</p>
+            )}
+            {msg.attachment && (
+              <div className="mt-1">
+                <img
+                  src={`${httpBase}${msg.attachment.url}`}
+                  alt={msg.attachment.filename}
+                  className="max-w-sm max-h-80 rounded border border-gray-700 cursor-pointer"
+                  onError={(e) => console.error('Image load failed:', (e.target as HTMLImageElement).src, msg.attachment)}
+                  onClick={() => window.open(`${httpBase}${msg.attachment!.url}`, '_blank')}
+                />
+              </div>
+            )}
           </div>
         );
       })}

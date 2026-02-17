@@ -199,8 +199,9 @@ function handleClientEvent<E extends ClientEventName>(
 
   switch (event) {
     case 'message:send': {
-      const { channelId, content } = data as ClientEvents['message:send'];
-      if (!content || !channelId) return;
+      const { channelId, content, attachmentId } = data as ClientEvents['message:send'];
+      if (!channelId) return;
+      if (!content?.trim() && !attachmentId) return;
 
       // Verify access
       const access = db.prepare(`
@@ -213,11 +214,35 @@ function handleClientEvent<E extends ClientEventName>(
       const id = nanoid();
       const createdAt = Math.floor(Date.now() / 1000);
       db.prepare('INSERT INTO messages (id, channel_id, author_id, content, created_at) VALUES (?, ?, ?, ?, ?)').run(
-        id, channelId, socket.userId, content, createdAt
+        id, channelId, socket.userId, content || '', createdAt
       );
 
+      // Link attachment to message if provided
+      let attachment = null;
+      if (attachmentId) {
+        const updated = db.prepare(
+          'UPDATE attachments SET message_id = ? WHERE id = ? AND message_id IS NULL'
+        ).run(id, attachmentId);
+
+        if (updated.changes > 0) {
+          const row = db.prepare(
+            'SELECT id, message_id, filename, mime_type, size, storage_path FROM attachments WHERE id = ?'
+          ).get(attachmentId) as { id: string; message_id: string; filename: string; mime_type: string; size: number; storage_path: string } | undefined;
+          if (row) {
+            attachment = {
+              id: row.id,
+              messageId: row.message_id,
+              filename: row.filename,
+              mimeType: row.mime_type,
+              size: row.size,
+              url: `/api/files/${row.storage_path}`,
+            };
+          }
+        }
+      }
+
       broadcastToChannel(channelId, 'message:new', {
-        message: { id, channelId, authorId: socket.userId, content, createdAt },
+        message: { id, channelId, authorId: socket.userId, content: content || '', createdAt, attachment },
         author: { id: socket.userId, username: socket.username, createdAt: 0 },
       });
       break;

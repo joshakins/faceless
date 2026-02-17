@@ -4,6 +4,7 @@ export interface ClientEvents {
   'message:send': {
     channelId: string;
     content: string;
+    attachmentId?: string;
   };
   'message:typing': {
     channelId: string;
