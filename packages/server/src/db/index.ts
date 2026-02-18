@@ -181,4 +181,20 @@ function runMigrations(db: Database.Database): void {
       PRIMARY KEY (server_id, user_id)
     )
   `);
+
+  // Add purge_after_days column to servers (idempotent migration)
+  const hasPurgeAfterDays = db.prepare(
+    "SELECT 1 FROM pragma_table_info('servers') WHERE name = 'purge_after_days'"
+  ).get();
+  if (!hasPurgeAfterDays) {
+    db.exec("ALTER TABLE servers ADD COLUMN purge_after_days INTEGER NOT NULL DEFAULT 30");
+  }
+
+  // Add locked column to messages (idempotent migration)
+  const hasMessageLocked = db.prepare(
+    "SELECT 1 FROM pragma_table_info('messages') WHERE name = 'locked'"
+  ).get();
+  if (!hasMessageLocked) {
+    db.exec("ALTER TABLE messages ADD COLUMN locked INTEGER NOT NULL DEFAULT 0");
+  }
 }

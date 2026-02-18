@@ -17,6 +17,7 @@ interface MessageRow {
   attachmentSize: number | null;
   attachmentPath: string | null;
   gifUrl: string | null;
+  locked: number;
 }
 
 function mapRows(rows: MessageRow[]) {
@@ -39,6 +40,7 @@ function mapRows(rows: MessageRow[]) {
         }
       : null,
     gifUrl: row.gifUrl,
+    locked: !!row.locked,
   }));
 }
 
@@ -69,7 +71,8 @@ messagesRouter.get('/:channelId', (req, res) => {
              a.id as attachmentId, a.filename as attachmentFilename,
              a.mime_type as attachmentMimeType, a.size as attachmentSize,
              a.storage_path as attachmentPath,
-             m.gif_url as gifUrl
+             m.gif_url as gifUrl,
+             m.locked
       FROM messages m
       JOIN users u ON u.id = m.author_id
       LEFT JOIN attachments a ON a.message_id = m.id
@@ -85,7 +88,8 @@ messagesRouter.get('/:channelId', (req, res) => {
              a.id as attachmentId, a.filename as attachmentFilename,
              a.mime_type as attachmentMimeType, a.size as attachmentSize,
              a.storage_path as attachmentPath,
-             m.gif_url as gifUrl
+             m.gif_url as gifUrl,
+             m.locked
       FROM messages m
       JOIN users u ON u.id = m.author_id
       LEFT JOIN attachments a ON a.message_id = m.id

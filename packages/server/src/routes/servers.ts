@@ -34,7 +34,7 @@ serversRouter.post('/', (req, res) => {
 serversRouter.get('/', (req, res) => {
   const db = getDb();
   const servers = db.prepare(`
-    SELECT s.id, s.name, s.owner_id as ownerId, s.created_at as createdAt
+    SELECT s.id, s.name, s.owner_id as ownerId, s.created_at as createdAt, s.purge_after_days as purgeAfterDays
     FROM servers s
     JOIN server_members sm ON sm.server_id = s.id
     WHERE sm.user_id = ?
@@ -48,7 +48,7 @@ serversRouter.get('/', (req, res) => {
 serversRouter.get('/:serverId', (req, res) => {
   const db = getDb();
   const server = db.prepare(`
-    SELECT s.id, s.name, s.owner_id as ownerId, s.created_at as createdAt
+    SELECT s.id, s.name, s.owner_id as ownerId, s.created_at as createdAt, s.purge_after_days as purgeAfterDays
     FROM servers s
     JOIN server_members sm ON sm.server_id = s.id
     WHERE s.id = ? AND sm.user_id = ?

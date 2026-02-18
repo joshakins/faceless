@@ -1,7 +1,10 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { getDb } from '../db/index.js';
 import { deleteUserSessions } from '../auth/sessions.js';
 import { sendToUser, broadcastToServer, broadcastToChannel } from '../ws/handler.js';
+import { UPLOADS_DIR } from './uploads.js';
 
 export const adminRouter: IRouter = Router();
 
@@ -201,4 +204,85 @@ adminRouter.delete('/messages/:messageId', (req, res) => {
   });
 
   res.json({ ok: true });
+});
+
+// ── Update purge settings for a server ──
+adminRouter.patch('/servers/:serverId/purge-settings', requireServerAdmin, (req, res) => {
+  const { purgeAfterDays } = req.body;
+
+  if (typeof purgeAfterDays !== 'number' || purgeAfterDays < 0 || purgeAfterDays > 365 || !Number.isInteger(purgeAfterDays)) {
+    res.status(400).json({ error: 'purgeAfterDays must be an integer between 0 and 365' });
+    return;
+  }
+
+  const db = getDb();
+  db.prepare('UPDATE servers SET purge_after_days = ? WHERE id = ?').run(purgeAfterDays, req.params.serverId);
+
+  res.json({ ok: true, purgeAfterDays });
+});
+
+// ── Purge all messages from text channels in a server now ──
+adminRouter.post('/servers/:serverId/purge-now', requireServerAdmin, (req, res) => {
+  const db = getDb();
+  const serverId = req.params.serverId;
+
+  // Find attachment files to clean up (skip locked messages)
+  const attachments = db.prepare(`
+    SELECT a.id, a.storage_path FROM attachments a
+    JOIN messages m ON m.id = a.message_id
+    JOIN channels c ON c.id = m.channel_id
+    WHERE c.server_id = ? AND c.type = 'text' AND m.locked = 0
+  `).all(serverId) as { id: string; storage_path: string }[];
+
+  // Delete files from disk
+  for (const att of attachments) {
+    fs.unlink(path.join(UPLOADS_DIR, att.storage_path), () => {});
+  }
+
+  // Delete all unlocked messages in text channels for this server
+  db.prepare(`
+    DELETE FROM messages WHERE channel_id IN (
+      SELECT id FROM channels WHERE server_id = ? AND type = 'text'
+    ) AND locked = 0
+  `).run(serverId);
+
+  res.json({ ok: true });
+});
+
+// ── Toggle message lock (protect from purges) ──
+adminRouter.post('/messages/:messageId/lock', (req, res) => {
+  const { messageId } = req.params;
+  const db = getDb();
+
+  const message = db.prepare(`
+    SELECT m.id, m.channel_id, m.locked, c.server_id
+    FROM messages m
+    JOIN channels c ON c.id = m.channel_id
+    WHERE m.id = ?
+  `).get(messageId) as { id: string; channel_id: string; locked: number; server_id: string } | undefined;
+
+  if (!message) {
+    res.status(404).json({ error: 'Message not found' });
+    return;
+  }
+
+  const membership = db.prepare(
+    "SELECT role FROM server_members WHERE server_id = ? AND user_id = ?"
+  ).get(message.server_id, req.user!.id) as { role: string } | undefined;
+
+  if (!membership || membership.role !== 'admin') {
+    res.status(403).json({ error: 'Admin access required' });
+    return;
+  }
+
+  const newLocked = message.locked ? 0 : 1;
+  db.prepare('UPDATE messages SET locked = ? WHERE id = ?').run(newLocked, messageId);
+
+  broadcastToChannel(message.channel_id, 'message:locked', {
+    messageId,
+    channelId: message.channel_id,
+    locked: !!newLocked,
+  });
+
+  res.json({ ok: true, locked: !!newLocked });
 });

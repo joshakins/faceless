@@ -1,7 +1,7 @@
 {
   "name": "faceless",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Private, friends-only voice & text chat",
   "scripts": {
     "dev:server": "pnpm --filter @faceless/server dev",

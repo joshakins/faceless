@@ -22,6 +22,7 @@ interface ChatMessage {
   createdAt: number;
   attachment?: ChatAttachment | null;
   gifUrl?: string | null;
+  locked?: boolean;
 }
 
 interface ChatState {
@@ -29,7 +30,7 @@ interface ChatState {
   activeServerId: string | null;
   activeChannelId: string | null;
   myRole: 'admin' | 'user' | null;
-  servers: Array<{ id: string; name: string; ownerId: string }>;
+  servers: Array<{ id: string; name: string; ownerId: string; purgeAfterDays: number }>;
   channels: Array<{ id: string; name: string; type: 'text' | 'voice'; serverId: string }>;
   messages: ChatMessage[];
   typingUsers: Map<string, { username: string; timeout: ReturnType<typeof setTimeout> }>;
@@ -43,6 +44,11 @@ interface ChatState {
   createServer: (name: string) => Promise<void>;
   joinServer: (code: string) => Promise<void>;
   deleteServer: (serverId: string) => Promise<void>;
+  createChannel: (name: string, type: 'text' | 'voice') => Promise<void>;
+  deleteChannel: (channelId: string) => Promise<void>;
+  updatePurgeSettings: (days: number) => Promise<void>;
+  purgeNow: () => Promise<void>;
+  toggleMessageLock: (messageId: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -135,6 +141,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     await get().loadServers();
   },
+
+  createChannel: async (name, type) => {
+    const serverId = get().activeServerId;
+    if (!serverId) return;
+    await api.createChannel(serverId, name, type);
+  },
+
+  deleteChannel: async (channelId) => {
+    await api.deleteChannel(channelId);
+  },
+
+  updatePurgeSettings: async (days) => {
+    const serverId = get().activeServerId;
+    if (!serverId) return;
+    await api.updatePurgeSettings(serverId, days);
+    set({
+      servers: get().servers.map((s) =>
+        s.id === serverId ? { ...s, purgeAfterDays: days } : s
+      ),
+    });
+  },
+
+  purgeNow: async () => {
+    const serverId = get().activeServerId;
+    if (!serverId) return;
+    await api.purgeNow(serverId);
+    // Keep only locked messages if viewing a text channel in this server
+    const activeChannel = get().channels.find((c) => c.id === get().activeChannelId);
+    if (activeChannel?.type === 'text') {
+      set({ messages: get().messages.filter((m) => m.locked) });
+    }
+  },
+
+  toggleMessageLock: async (messageId) => {
+    await api.toggleMessageLock(messageId);
+  },
 }));
 
 // Listen for real-time messages
@@ -214,4 +256,53 @@ wsClient.on('message:typing', (data) => {
 
   typingUsers.set(data.userId, { username: data.username, timeout });
   useChatStore.setState({ typingUsers });
+});
+
+// Listen for channel creation
+wsClient.on('channel:created', (data) => {
+  const state = useChatStore.getState();
+  if (data.channel.serverId !== state.activeServerId) return;
+  if (state.channels.some((c) => c.id === data.channel.id)) return;
+  useChatStore.setState({
+    channels: [...state.channels, {
+      id: data.channel.id,
+      name: data.channel.name,
+      type: data.channel.type,
+      serverId: data.channel.serverId,
+    }],
+  });
+});
+
+// Listen for channel deletion
+wsClient.on('channel:deleted', (data) => {
+  const state = useChatStore.getState();
+  if (data.serverId !== state.activeServerId) return;
+  const newChannels = state.channels.filter((c) => c.id !== data.channelId);
+
+  if (state.activeChannelId === data.channelId) {
+    const firstText = newChannels.find((c) => c.type === 'text');
+    useChatStore.setState({
+      channels: newChannels,
+      activeChannelId: firstText?.id ?? null,
+      messages: [],
+    });
+    if (firstText) {
+      api.getMessages(firstText.id).then(({ messages }) => {
+        useChatStore.setState({ messages });
+      });
+    }
+  } else {
+    useChatStore.setState({ channels: newChannels });
+  }
+});
+
+// Listen for message lock/unlock
+wsClient.on('message:locked', (data) => {
+  const state = useChatStore.getState();
+  if (data.channelId !== state.activeChannelId) return;
+  useChatStore.setState({
+    messages: state.messages.map((m) =>
+      m.id === data.messageId ? { ...m, locked: data.locked } : m
+    ),
+  });
 });

@@ -59,7 +59,7 @@ export const api = {
 
   // Servers
   getServers: () =>
-    request<{ servers: Array<{ id: string; name: string; ownerId: string }> }>('/servers'),
+    request<{ servers: Array<{ id: string; name: string; ownerId: string; purgeAfterDays: number }> }>('/servers'),
 
   createServer: (name: string) =>
     request<{ id: string; name: string }>('/servers', {
@@ -92,6 +92,9 @@ export const api = {
       body: JSON.stringify({ name, type }),
     }),
 
+  deleteChannel: (channelId: string) =>
+    request<{ ok: boolean }>(`/channels/${channelId}`, { method: 'DELETE' }),
+
   // Messages
   getMessages: (channelId: string, before?: string) =>
     request<{ messages: Array<{
@@ -99,6 +102,7 @@ export const api = {
       authorAvatarUrl: string | null;
       attachment?: { id: string; messageId: string; filename: string; mimeType: string; size: number; url: string } | null;
       gifUrl?: string | null;
+      locked?: boolean;
     }> }>(
       `/messages/${channelId}${before ? `?before=${before}` : ''}`
     ),
@@ -216,6 +220,19 @@ export const api = {
 
   deleteMessage: (messageId: string) =>
     request<{ ok: boolean }>(`/admin/messages/${messageId}`, { method: 'DELETE' }),
+
+  // Purge
+  updatePurgeSettings: (serverId: string, purgeAfterDays: number) =>
+    request<{ ok: boolean; purgeAfterDays: number }>(`/admin/servers/${serverId}/purge-settings`, {
+      method: 'PATCH',
+      body: JSON.stringify({ purgeAfterDays }),
+    }),
+
+  purgeNow: (serverId: string) =>
+    request<{ ok: boolean }>(`/admin/servers/${serverId}/purge-now`, { method: 'POST' }),
+
+  toggleMessageLock: (messageId: string) =>
+    request<{ ok: boolean; locked: boolean }>(`/admin/messages/${messageId}/lock`, { method: 'POST' }),
 };
 
 // Klipy GIF API types

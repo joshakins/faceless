@@ -70,6 +70,37 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
+// Auto-purge old messages every hour
+setInterval(() => {
+  const db = getDb();
+  const servers = db.prepare(
+    'SELECT id, purge_after_days FROM servers WHERE purge_after_days > 0'
+  ).all() as { id: string; purge_after_days: number }[];
+
+  for (const srv of servers) {
+    const cutoff = Math.floor(Date.now() / 1000) - (srv.purge_after_days * 86400);
+
+    // Find attachment files to clean up (skip locked messages)
+    const attachments = db.prepare(`
+      SELECT a.storage_path FROM attachments a
+      JOIN messages m ON m.id = a.message_id
+      JOIN channels c ON c.id = m.channel_id
+      WHERE c.server_id = ? AND c.type = 'text' AND m.created_at < ? AND m.locked = 0
+    `).all(srv.id, cutoff) as { storage_path: string }[];
+
+    for (const att of attachments) {
+      fs.unlink(path.join(UPLOADS_DIR, att.storage_path), () => {});
+    }
+
+    // Delete old messages from text channels (skip locked)
+    db.prepare(`
+      DELETE FROM messages WHERE channel_id IN (
+        SELECT id FROM channels WHERE server_id = ? AND type = 'text'
+      ) AND created_at < ? AND locked = 0
+    `).run(srv.id, cutoff);
+  }
+}, 60 * 60 * 1000);
+
 server.listen(PORT, HOST, () => {
   console.log(`Faceless API server running on ${HOST}:${PORT}`);
 });

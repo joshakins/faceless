@@ -37,6 +37,7 @@ export interface Message {
   createdAt: number;
   attachment?: Attachment | null;
   gifUrl?: string | null;
+  locked?: boolean;
 }
 
 export interface DirectMessage {

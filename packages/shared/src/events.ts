@@ -92,6 +92,18 @@ export interface ServerEvents {
     serverId: string;
     reason: string;
   };
+  'channel:created': {
+    channel: import('./types.js').Channel;
+  };
+  'channel:deleted': {
+    channelId: string;
+    serverId: string;
+  };
+  'message:locked': {
+    messageId: string;
+    channelId: string;
+    locked: boolean;
+  };
 }
 
 // ── Envelope ──
