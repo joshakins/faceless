@@ -14,6 +14,7 @@ import { messagesRouter } from './routes/messages.js';
 import { voiceRouter } from './routes/voice.js';
 import { uploadsRouter, UPLOADS_DIR } from './routes/uploads.js';
 import { gifsRouter } from './routes/gifs.js';
+import { conversationsRouter } from './routes/conversations.js';
 import { sessionMiddleware } from './auth/sessions.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -43,6 +44,7 @@ app.use('/api/messages', sessionMiddleware, messagesRouter);
 app.use('/api/voice', sessionMiddleware, voiceRouter);
 app.use('/api/uploads', sessionMiddleware, uploadsRouter);
 app.use('/api/gifs', sessionMiddleware, gifsRouter);
+app.use('/api/conversations', sessionMiddleware, conversationsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -57,7 +59,7 @@ setInterval(() => {
   const db = getDb();
   const cutoff = Math.floor(Date.now() / 1000) - 3600;
   const orphans = db.prepare(
-    'SELECT id, storage_path FROM attachments WHERE message_id IS NULL AND created_at < ?'
+    'SELECT id, storage_path FROM attachments WHERE message_id IS NULL AND dm_id IS NULL AND created_at < ?'
   ).all(cutoff) as { id: string; storage_path: string }[];
 
   for (const orphan of orphans) {

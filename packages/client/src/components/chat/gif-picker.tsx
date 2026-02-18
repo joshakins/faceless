@@ -1,16 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api, type KlipyGif } from '../../lib/api.js';
-import { useChatStore } from '../../stores/chat.js';
 
 interface GifPickerProps {
   onClose: () => void;
+  onSendGif: (url: string) => void;
 }
 
-export function GifPicker({ onClose }: GifPickerProps) {
+export function GifPicker({ onClose, onSendGif }: GifPickerProps) {
   const [query, setQuery] = useState('');
   const [gifs, setGifs] = useState<KlipyGif[]>([]);
   const [loading, setLoading] = useState(true);
-  const sendGif = useChatStore((s) => s.sendGif);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -62,10 +61,10 @@ export function GifPicker({ onClose }: GifPickerProps) {
   const handleSelect = useCallback((gif: KlipyGif) => {
     const url = gif.file.md?.webp?.url || gif.file.sm?.webp?.url || gif.file.sm?.gif?.url;
     if (url) {
-      sendGif(url);
+      onSendGif(url);
       onClose();
     }
-  }, [sendGif, onClose]);
+  }, [onSendGif, onClose]);
 
   return (
     <div

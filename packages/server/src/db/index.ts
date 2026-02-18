@@ -121,4 +121,29 @@ function runMigrations(db: Database.Database): void {
   if (!hasGifUrl) {
     db.exec("ALTER TABLE messages ADD COLUMN gif_url TEXT");
   }
+
+  // Add avatar_url column to users (idempotent migration)
+  const hasAvatarUrl = db.prepare(
+    "SELECT 1 FROM pragma_table_info('users') WHERE name = 'avatar_url'"
+  ).get();
+  if (!hasAvatarUrl) {
+    db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT");
+  }
+
+  // Add gif_url column to direct_messages (idempotent migration)
+  const dmHasGifUrl = db.prepare(
+    "SELECT 1 FROM pragma_table_info('direct_messages') WHERE name = 'gif_url'"
+  ).get();
+  if (!dmHasGifUrl) {
+    db.exec("ALTER TABLE direct_messages ADD COLUMN gif_url TEXT");
+  }
+
+  // Add dm_id column to attachments for DM file support (idempotent migration)
+  const hasAttachmentDmId = db.prepare(
+    "SELECT 1 FROM pragma_table_info('attachments') WHERE name = 'dm_id'"
+  ).get();
+  if (!hasAttachmentDmId) {
+    db.exec("ALTER TABLE attachments ADD COLUMN dm_id TEXT REFERENCES direct_messages(id) ON DELETE CASCADE");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_attachments_dm ON attachments(dm_id)");
+  }
 }

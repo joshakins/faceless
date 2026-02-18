@@ -7,6 +7,7 @@ const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 export interface SessionUser {
   id: string;
   username: string;
+  avatarUrl: string | null;
 }
 
 declare global {
@@ -40,19 +41,19 @@ export function deleteUserSessions(userId: string): void {
   db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
 }
 
-export function validateSession(sessionId: string): { userId: string; username: string; sessionId: string } | null {
+export function validateSession(sessionId: string): { userId: string; username: string; avatarUrl: string | null; sessionId: string } | null {
   const db = getDb();
   const now = Math.floor(Date.now() / 1000);
 
   const row = db.prepare(`
-    SELECT s.id as session_id, u.id as user_id, u.username
+    SELECT s.id as session_id, u.id as user_id, u.username, u.avatar_url
     FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.id = ? AND s.expires_at > ?
-  `).get(sessionId, now) as { session_id: string; user_id: string; username: string } | undefined;
+  `).get(sessionId, now) as { session_id: string; user_id: string; username: string; avatar_url: string | null } | undefined;
 
   if (!row) return null;
-  return { userId: row.user_id, username: row.username, sessionId: row.session_id };
+  return { userId: row.user_id, username: row.username, avatarUrl: row.avatar_url, sessionId: row.session_id };
 }
 
 export function sessionMiddleware(req: Request, res: Response, next: NextFunction): void {
@@ -71,18 +72,18 @@ export function sessionMiddleware(req: Request, res: Response, next: NextFunctio
   const now = Math.floor(Date.now() / 1000);
 
   const row = db.prepare(`
-    SELECT s.id as session_id, u.id as user_id, u.username
+    SELECT s.id as session_id, u.id as user_id, u.username, u.avatar_url
     FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.id = ? AND s.expires_at > ?
-  `).get(sessionId, now) as { session_id: string; user_id: string; username: string } | undefined;
+  `).get(sessionId, now) as { session_id: string; user_id: string; username: string; avatar_url: string | null } | undefined;
 
   if (!row) {
     res.status(401).json({ error: 'Session expired or invalid' });
     return;
   }
 
-  req.user = { id: row.user_id, username: row.username };
+  req.user = { id: row.user_id, username: row.username, avatarUrl: row.avatar_url };
   req.sessionId = row.session_id;
   next();
 }

@@ -9,6 +9,7 @@ import { validateSession } from '../auth/sessions.js';
 interface AuthenticatedSocket extends WebSocket {
   userId: string;
   username: string;
+  avatarUrl: string | null;
   sessionId: string;
   isAlive: boolean;
 }
@@ -48,6 +49,26 @@ function getUserServerIds(userId: string): string[] {
     'SELECT server_id FROM server_members WHERE user_id = ?'
   ).all(userId) as { server_id: string }[];
   return rows.map(r => r.server_id);
+}
+
+function broadcastToConversation(conversationId: string, event: string, data: unknown, excludeUserId?: string): void {
+  const db = getDb();
+  const participants = db.prepare(
+    'SELECT user_id FROM conversation_participants WHERE conversation_id = ?'
+  ).all(conversationId) as { user_id: string }[];
+
+  const message = JSON.stringify({ event, data });
+  for (const participant of participants) {
+    if (participant.user_id === excludeUserId) continue;
+    const sockets = clients.get(participant.user_id);
+    if (sockets) {
+      for (const socket of sockets) {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(message);
+        }
+      }
+    }
+  }
 }
 
 function broadcastToServer(serverId: string, event: string, data: unknown, excludeUserId?: string): void {
@@ -108,6 +129,7 @@ export function createWsServer(server: HttpServer): WebSocketServer {
 
     socket.userId = session.userId;
     socket.username = session.username;
+    socket.avatarUrl = session.avatarUrl;
     socket.sessionId = session.sessionId;
 
     // Track connection
@@ -243,7 +265,7 @@ function handleClientEvent<E extends ClientEventName>(
 
       broadcastToChannel(channelId, 'message:new', {
         message: { id, channelId, authorId: socket.userId, content: content || '', createdAt, attachment, gifUrl: gifUrl || null },
-        author: { id: socket.userId, username: socket.username, createdAt: 0 },
+        author: { id: socket.userId, username: socket.username, avatarUrl: socket.avatarUrl, createdAt: 0 },
       });
       break;
     }
@@ -253,6 +275,77 @@ function handleClientEvent<E extends ClientEventName>(
       if (!channelId) return;
       broadcastToChannel(channelId, 'message:typing', {
         channelId,
+        userId: socket.userId,
+        username: socket.username,
+      }, socket.userId);
+      break;
+    }
+
+    case 'dm:send': {
+      const { conversationId, content, attachmentId, gifUrl } = data as ClientEvents['dm:send'];
+      if (!conversationId) return;
+      if (!content?.trim() && !attachmentId && !gifUrl) return;
+
+      // Verify participant
+      const isParticipant = db.prepare(
+        'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?'
+      ).get(conversationId, socket.userId);
+      if (!isParticipant) return;
+
+      const dmId = nanoid();
+      const dmCreatedAt = Math.floor(Date.now() / 1000);
+      db.prepare(
+        'INSERT INTO direct_messages (id, conversation_id, author_id, content, gif_url, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(dmId, conversationId, socket.userId, content || '', gifUrl || null, dmCreatedAt);
+
+      // Link attachment if provided
+      let dmAttachment = null;
+      if (attachmentId) {
+        const updated = db.prepare(
+          'UPDATE attachments SET dm_id = ? WHERE id = ? AND message_id IS NULL AND dm_id IS NULL'
+        ).run(dmId, attachmentId);
+
+        if (updated.changes > 0) {
+          const row = db.prepare(
+            'SELECT id, filename, mime_type, size, storage_path FROM attachments WHERE id = ?'
+          ).get(attachmentId) as { id: string; filename: string; mime_type: string; size: number; storage_path: string } | undefined;
+          if (row) {
+            dmAttachment = {
+              id: row.id,
+              messageId: dmId,
+              filename: row.filename,
+              mimeType: row.mime_type,
+              size: row.size,
+              url: `/api/files/${row.storage_path}`,
+            };
+          }
+        }
+      }
+
+      // Broadcast to ALL participants (including sender, for Note to Self and multi-device)
+      broadcastToConversation(conversationId, 'dm:new', {
+        conversationId,
+        message: {
+          id: dmId, conversationId, authorId: socket.userId,
+          content: content || '', createdAt: dmCreatedAt,
+          attachment: dmAttachment, gifUrl: gifUrl || null,
+        },
+        author: { id: socket.userId, username: socket.username, avatarUrl: socket.avatarUrl, createdAt: 0 },
+      });
+      break;
+    }
+
+    case 'dm:typing': {
+      const { conversationId } = data as ClientEvents['dm:typing'];
+      if (!conversationId) return;
+
+      const isTypingParticipant = db.prepare(
+        'SELECT 1 FROM conversation_participants WHERE conversation_id = ? AND user_id = ?'
+      ).get(conversationId, socket.userId);
+      if (!isTypingParticipant) return;
+
+      broadcastToConversation(conversationId, 'dm:typing', {
+        conversationId,
         userId: socket.userId,
         username: socket.username,
       }, socket.userId);

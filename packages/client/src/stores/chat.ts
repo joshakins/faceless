@@ -16,6 +16,7 @@ interface ChatMessage {
   channelId: string;
   authorId: string;
   authorUsername: string;
+  authorAvatarUrl: string | null;
   content: string;
   createdAt: number;
   attachment?: ChatAttachment | null;
@@ -23,12 +24,14 @@ interface ChatMessage {
 }
 
 interface ChatState {
+  viewMode: 'servers' | 'dms';
   activeServerId: string | null;
   activeChannelId: string | null;
   servers: Array<{ id: string; name: string; ownerId: string }>;
   channels: Array<{ id: string; name: string; type: 'text' | 'voice'; serverId: string }>;
   messages: ChatMessage[];
   typingUsers: Map<string, { username: string; timeout: ReturnType<typeof setTimeout> }>;
+  setViewMode: (mode: 'servers' | 'dms') => void;
   setActiveServer: (serverId: string) => Promise<void>;
   setActiveChannel: (channelId: string) => Promise<void>;
   loadServers: () => Promise<void>;
@@ -41,6 +44,7 @@ interface ChatState {
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
+  viewMode: 'servers',
   activeServerId: null,
   activeChannelId: null,
   servers: [],
@@ -48,13 +52,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   typingUsers: new Map(),
 
+  setViewMode: (mode) => {
+    set({ viewMode: mode });
+    if (mode === 'dms') {
+      set({ activeServerId: null, activeChannelId: null, channels: [], messages: [] });
+    }
+  },
+
   loadServers: async () => {
     const { servers } = await api.getServers();
     set({ servers });
   },
 
   setActiveServer: async (serverId) => {
-    set({ activeServerId: serverId, activeChannelId: null, messages: [], channels: [] });
+    set({ viewMode: 'servers', activeServerId: serverId, activeChannelId: null, messages: [], channels: [] });
     const { channels } = await api.getChannels(serverId);
     set({ channels });
     // Auto-select first text channel
@@ -128,6 +139,7 @@ wsClient.on('message:new', (data) => {
         channelId: data.message.channelId,
         authorId: data.message.authorId,
         authorUsername: data.author.username,
+        authorAvatarUrl: data.author.avatarUrl,
         content: data.message.content,
         createdAt: data.message.createdAt,
         attachment: data.message.attachment || null,

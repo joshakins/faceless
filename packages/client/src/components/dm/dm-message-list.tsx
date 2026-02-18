@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { useChatStore } from '../../stores/chat.js';
+import { useDmStore } from '../../stores/dm.js';
 import { useConnectionStore } from '../../stores/connection.js';
 import { UserAvatar } from '../ui/user-avatar.js';
 
-export function MessageList() {
-  const messages = useChatStore((s) => s.messages);
-  const typingUsers = useChatStore((s) => s.typingUsers);
+export function DmMessageList() {
+  const messages = useDmStore((s) => s.messages);
+  const typingUsers = useDmStore((s) => s.typingUsers);
   const serverUrl = useConnectionStore((s) => s.serverUrl);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -52,7 +52,6 @@ export function MessageList() {
                         src={`${httpBase}${msg.attachment.url}`}
                         alt={msg.attachment.filename}
                         className="max-w-sm max-h-80 rounded border border-gray-700 cursor-pointer"
-                        onError={(e) => console.error('Image load failed:', (e.target as HTMLImageElement).src, msg.attachment)}
                         onClick={() => window.open(`${httpBase}${msg.attachment!.url}`, '_blank')}
                       />
                     </div>
@@ -84,7 +83,6 @@ export function MessageList() {
                       src={`${httpBase}${msg.attachment.url}`}
                       alt={msg.attachment.filename}
                       className="max-w-sm max-h-80 rounded border border-gray-700 cursor-pointer"
-                      onError={(e) => console.error('Image load failed:', (e.target as HTMLImageElement).src, msg.attachment)}
                       onClick={() => window.open(`${httpBase}${msg.attachment!.url}`, '_blank')}
                     />
                   </div>
