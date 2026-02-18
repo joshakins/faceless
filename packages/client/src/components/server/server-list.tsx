@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useChatStore } from '../../stores/chat.js';
+import { useDmStore } from '../../stores/dm.js';
 import { useAuthStore } from '../../stores/auth.js';
+import { UserAvatar } from '../ui/user-avatar.js';
+import { ProfileModal } from '../ui/profile-modal.js';
 
 export function ServerSidebar() {
   const servers = useChatStore((s) => s.servers);
   const activeServerId = useChatStore((s) => s.activeServerId);
+  const viewMode = useChatStore((s) => s.viewMode);
   const setActiveServer = useChatStore((s) => s.setActiveServer);
   const createServer = useChatStore((s) => s.createServer);
   const joinServer = useChatStore((s) => s.joinServer);
@@ -14,6 +18,7 @@ export function ServerSidebar() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [input, setInput] = useState('');
 
   // Context menu state
@@ -57,6 +62,26 @@ export function ServerSidebar() {
 
   return (
     <div className="w-[72px] bg-gray-950 flex flex-col items-center py-3 gap-2 shrink-0">
+      {/* DM button */}
+      <button
+        onClick={() => {
+          useChatStore.getState().setViewMode('dms');
+          useDmStore.getState().loadConversations();
+        }}
+        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all hover:rounded-xl ${
+          viewMode === 'dms'
+            ? 'bg-indigo-600 text-white rounded-xl'
+            : 'bg-gray-700 text-gray-300 hover:bg-indigo-500 hover:text-white'
+        }`}
+        title="Direct Messages"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      </button>
+
+      <div className="w-8 h-[2px] bg-gray-700 rounded my-1" />
+
       {servers.map((server) => (
         <button
           key={server.id}
@@ -94,6 +119,20 @@ export function ServerSidebar() {
       </button>
 
       <div className="flex-1" />
+
+      {/* User avatar / profile */}
+      <button
+        onClick={() => setShowProfile(true)}
+        className="w-12 h-12 rounded-2xl overflow-hidden hover:rounded-xl transition-all"
+        title="Profile Settings"
+      >
+        <UserAvatar
+          username={currentUser?.username || ''}
+          avatarUrl={currentUser?.avatarUrl || null}
+          size="md"
+          className="w-12 h-12 text-lg"
+        />
+      </button>
 
       {/* Logout */}
       <button
@@ -158,6 +197,9 @@ export function ServerSidebar() {
           </div>
         </div>
       )}
+
+      {/* Profile modal */}
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
 
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (

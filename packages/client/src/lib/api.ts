@@ -40,13 +40,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   // Auth
   login: (username: string, password: string) =>
-    request<{ user: { id: string; username: string }; token: string }>('/auth/login', {
+    request<{ user: { id: string; username: string; avatarUrl: string | null }; token: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
 
   register: (username: string, password: string) =>
-    request<{ user: { id: string; username: string }; token: string }>('/auth/register', {
+    request<{ user: { id: string; username: string; avatarUrl: string | null }; token: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
@@ -55,7 +55,7 @@ export const api = {
     request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
 
   me: () =>
-    request<{ user: { id: string; username: string } }>('/auth/me'),
+    request<{ user: { id: string; username: string; avatarUrl: string | null } }>('/auth/me'),
 
   // Servers
   getServers: () =>
@@ -77,7 +77,7 @@ export const api = {
     request<{ code: string }>(`/servers/${serverId}/invites`, { method: 'POST' }),
 
   getMembers: (serverId: string) =>
-    request<{ members: Array<{ id: string; username: string }> }>(`/servers/${serverId}/members`),
+    request<{ members: Array<{ id: string; username: string; avatarUrl: string | null }> }>(`/servers/${serverId}/members`),
 
   deleteServer: (serverId: string) =>
     request<{ ok: boolean }>(`/servers/${serverId}`, { method: 'DELETE' }),
@@ -96,6 +96,7 @@ export const api = {
   getMessages: (channelId: string, before?: string) =>
     request<{ messages: Array<{
       id: string; channelId: string; authorId: string; content: string; createdAt: number; authorUsername: string;
+      authorAvatarUrl: string | null;
       attachment?: { id: string; messageId: string; filename: string; mimeType: string; size: number; url: string } | null;
       gifUrl?: string | null;
     }> }>(
@@ -132,12 +133,66 @@ export const api = {
     return res.json();
   },
 
+  // Avatar
+  updateAvatar: async (file: File): Promise<{ user: { id: string; username: string; avatarUrl: string } }> => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const headers: Record<string, string> = {};
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const res = await fetch(`${getBase()}/auth/profile`, {
+      method: 'PATCH',
+      headers,
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Upload failed: HTTP ${res.status}`);
+    }
+
+    return res.json();
+  },
+
   // Voice
   getVoiceToken: (channelId: string) =>
     request<{ token: string; url: string }>('/voice/token', {
       method: 'POST',
       body: JSON.stringify({ channelId }),
     }),
+
+  // Conversations / DMs
+  getConversations: () =>
+    request<{ conversations: Array<{
+      id: string;
+      participants: Array<{ id: string; username: string; avatarUrl: string | null }>;
+      lastMessage: { id: string; conversationId: string; authorId: string; content: string; createdAt: number } | null;
+      createdAt: number;
+    }> }>('/conversations'),
+
+  createConversation: (participantIds: string[]) =>
+    request<{ conversation: {
+      id: string;
+      participants: Array<{ id: string; username: string; avatarUrl: string | null }>;
+      lastMessage: { id: string; conversationId: string; authorId: string; content: string; createdAt: number } | null;
+      createdAt: number;
+    } }>('/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ participantIds }),
+    }),
+
+  getDmMessages: (conversationId: string, before?: number) =>
+    request<{ messages: Array<{
+      id: string; conversationId: string; authorId: string; content: string;
+      createdAt: number; authorUsername: string; authorAvatarUrl: string | null;
+      attachment?: { id: string; messageId: string; filename: string; mimeType: string; size: number; url: string } | null;
+      gifUrl?: string | null;
+    }> }>(
+      `/conversations/${conversationId}/messages${before ? `?before=${before}` : ''}`
+    ),
 
   // GIFs
   gifTrending: (perPage = 24) =>

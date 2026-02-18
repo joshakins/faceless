@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   username: string;
+  avatarUrl: string | null;
   createdAt: number;
 }
 
@@ -44,11 +45,20 @@ export interface DirectMessage {
   authorId: string;
   content: string;
   createdAt: number;
+  attachment?: Attachment | null;
+  gifUrl?: string | null;
 }
 
 export interface Conversation {
   id: string;
   participantIds: string[];
+  createdAt: number;
+}
+
+export interface ConversationWithParticipants {
+  id: string;
+  participants: User[];
+  lastMessage: DirectMessage | null;
   createdAt: number;
 }
 

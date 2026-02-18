@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useChatStore } from '../../stores/chat.js';
 import { useVoiceStore } from '../../stores/voice.js';
 import { usePresenceStore } from '../../stores/presence.js';
+import { useDmStore } from '../../stores/dm.js';
 import { api } from '../../lib/api.js';
 import { ParticipantList } from '../voice/participant-list.js';
+import { UserAvatar } from '../ui/user-avatar.js';
 
 export function ChannelSidebar() {
   const channels = useChatStore((s) => s.channels);
@@ -14,7 +16,7 @@ export function ChannelSidebar() {
   const activeVoiceChannelId = useVoiceStore((s) => s.activeVoiceChannelId);
   const presenceMap = usePresenceStore((s) => s.presenceMap);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [members, setMembers] = useState<Array<{ id: string; username: string }>>([]);
+  const [members, setMembers] = useState<Array<{ id: string; username: string; avatarUrl: string | null }>>([]);
 
   const textChannels = channels.filter((c) => c.type === 'text');
   const voiceChannels = channels.filter((c) => c.type === 'voice');
@@ -96,10 +98,15 @@ export function ChannelSidebar() {
             Online — {onlineMembers.length}
           </h3>
           {onlineMembers.map((m) => (
-            <div key={m.id} className="flex items-center gap-2 px-2 py-1 text-sm text-gray-300">
-              <div className="w-2 h-2 bg-green-500 rounded-full shrink-0" />
+            <button
+              key={m.id}
+              onClick={() => useDmStore.getState().openDmWith(m.id)}
+              className="w-full flex items-center gap-2 px-2 py-1 text-sm text-gray-300 cursor-pointer hover:bg-gray-700/50 rounded transition-colors"
+              title={`Message ${m.username}`}
+            >
+              <UserAvatar username={m.username} avatarUrl={m.avatarUrl} size="sm" />
               {m.username}
-            </div>
+            </button>
           ))}
           {offlineMembers.length > 0 && (
             <>
@@ -107,10 +114,15 @@ export function ChannelSidebar() {
                 Offline — {offlineMembers.length}
               </h3>
               {offlineMembers.map((m) => (
-                <div key={m.id} className="flex items-center gap-2 px-2 py-1 text-sm text-gray-500">
-                  <div className="w-2 h-2 bg-gray-600 rounded-full shrink-0" />
+                <button
+                  key={m.id}
+                  onClick={() => useDmStore.getState().openDmWith(m.id)}
+                  className="w-full flex items-center gap-2 px-2 py-1 text-sm text-gray-500 cursor-pointer hover:bg-gray-700/50 rounded transition-colors"
+                  title={`Message ${m.username}`}
+                >
+                  <UserAvatar username={m.username} avatarUrl={m.avatarUrl} size="sm" className="opacity-50" />
                   {m.username}
-                </div>
+                </button>
               ))}
             </>
           )}

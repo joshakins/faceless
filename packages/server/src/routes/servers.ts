@@ -138,7 +138,7 @@ serversRouter.get('/:serverId/members', (req, res) => {
   }
 
   const members = db.prepare(`
-    SELECT u.id, u.username, sm.joined_at as joinedAt
+    SELECT u.id, u.username, u.avatar_url as avatarUrl, sm.joined_at as joinedAt
     FROM users u
     JOIN server_members sm ON sm.user_id = u.id
     WHERE sm.server_id = ?

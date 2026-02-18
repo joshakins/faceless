@@ -62,7 +62,17 @@
       "Bash(cmd.exe /c \"netstat -ano | findstr :3000 | findstr LISTENING\")",
       "WebFetch(domain:docs.klipy.com)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:klipy.com)"
+      "WebFetch(domain:klipy.com)",
+      "Bash(git fetch:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh api:*)",
+      "Bash(gh pr view:*)",
+      "Bash(git merge:*)",
+      "Bash(gh run:*)",
+      "Bash(\"C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd\" --filter @faceless/shared run build)",
+      "Bash(\"C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd\" --filter @faceless/server run build)",
+      "Bash(\"C:\\\\Users\\\\josh.akins\\\\AppData\\\\Roaming\\\\npm\\\\pnpm.cmd\" --filter @faceless/client run build)"
     ]
   }
 }

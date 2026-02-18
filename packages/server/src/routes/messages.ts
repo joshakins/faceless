@@ -10,6 +10,7 @@ interface MessageRow {
   content: string;
   createdAt: number;
   authorUsername: string;
+  authorAvatarUrl: string | null;
   attachmentId: string | null;
   attachmentFilename: string | null;
   attachmentMimeType: string | null;
@@ -26,6 +27,7 @@ function mapRows(rows: MessageRow[]) {
     content: row.content,
     createdAt: row.createdAt,
     authorUsername: row.authorUsername,
+    authorAvatarUrl: row.authorAvatarUrl,
     attachment: row.attachmentId
       ? {
           id: row.attachmentId,
@@ -63,7 +65,7 @@ messagesRouter.get('/:channelId', (req, res) => {
     rows = db.prepare(`
       SELECT m.id, m.channel_id as channelId, m.author_id as authorId,
              m.content, m.created_at as createdAt,
-             u.username as authorUsername,
+             u.username as authorUsername, u.avatar_url as authorAvatarUrl,
              a.id as attachmentId, a.filename as attachmentFilename,
              a.mime_type as attachmentMimeType, a.size as attachmentSize,
              a.storage_path as attachmentPath,
@@ -79,7 +81,7 @@ messagesRouter.get('/:channelId', (req, res) => {
     rows = db.prepare(`
       SELECT m.id, m.channel_id as channelId, m.author_id as authorId,
              m.content, m.created_at as createdAt,
-             u.username as authorUsername,
+             u.username as authorUsername, u.avatar_url as authorAvatarUrl,
              a.id as attachmentId, a.filename as attachmentFilename,
              a.mime_type as attachmentMimeType, a.size as attachmentSize,
              a.storage_path as attachmentPath,

@@ -22,13 +22,14 @@ function loadToken(): string | null {
 }
 
 interface AuthState {
-  user: { id: string; username: string } | null;
+  user: { id: string; username: string; avatarUrl: string | null } | null;
   loading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
+  updateAvatar: (file: File) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -78,6 +79,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       clearToken();
       set({ user: null, loading: false });
     }
+  },
+
+  updateAvatar: async (file) => {
+    const { user } = await api.updateAvatar(file);
+    set((state) => ({
+      user: state.user ? { ...state.user, avatarUrl: user.avatarUrl } : null,
+    }));
   },
 }));
 

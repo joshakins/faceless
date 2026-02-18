@@ -23,6 +23,11 @@ export interface ClientEvents {
   'dm:send': {
     conversationId: string;
     content: string;
+    attachmentId?: string;
+    gifUrl?: string;
+  };
+  'dm:typing': {
+    conversationId: string;
   };
 }
 
@@ -52,8 +57,14 @@ export interface ServerEvents {
     participants: string[];
   };
   'dm:new': {
+    conversationId: string;
     message: import('./types.js').DirectMessage;
     author: import('./types.js').User;
+  };
+  'dm:typing': {
+    conversationId: string;
+    userId: string;
+    username: string;
   };
   'error': {
     code: string;

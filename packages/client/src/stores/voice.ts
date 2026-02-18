@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Room, RoomEvent, Track, RemoteTrackPublication, RemoteParticipant, Participant } from 'livekit-client';
 import { api } from '../lib/api.js';
+import { useAudioSettingsStore } from './audio-settings.js';
 
 interface VoiceState {
   room: Room | null;
@@ -31,8 +32,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     }
 
     const { token, url } = await api.getVoiceToken(channelId);
+    const { inputDeviceId, outputDeviceId } = useAudioSettingsStore.getState();
 
-    const room = new Room();
+    const room = new Room({
+      audioCaptureDefaults: inputDeviceId ? { deviceId: { exact: inputDeviceId } } : undefined,
+    });
 
     room.on(RoomEvent.ParticipantConnected, () => {
       set({ participants: Array.from(room.remoteParticipants.keys()) });
@@ -59,6 +63,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
     await room.connect(url, token);
     await room.localParticipant.setMicrophoneEnabled(true);
+
+    if (outputDeviceId) {
+      await room.switchActiveDevice('audiooutput', outputDeviceId).catch(() => {});
+    }
 
     set({
       room,
