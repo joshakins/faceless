@@ -146,4 +146,39 @@ function runMigrations(db: Database.Database): void {
     db.exec("ALTER TABLE attachments ADD COLUMN dm_id TEXT REFERENCES direct_messages(id) ON DELETE CASCADE");
     db.exec("CREATE INDEX IF NOT EXISTS idx_attachments_dm ON attachments(dm_id)");
   }
+
+  // Add role column to server_members (idempotent migration)
+  const hasMemberRole = db.prepare(
+    "SELECT 1 FROM pragma_table_info('server_members') WHERE name = 'role'"
+  ).get();
+  if (!hasMemberRole) {
+    db.exec("ALTER TABLE server_members ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+    // Promote server owners to admin in their servers
+    db.exec(`
+      UPDATE server_members SET role = 'admin'
+      WHERE EXISTS (
+        SELECT 1 FROM servers
+        WHERE servers.id = server_members.server_id
+        AND servers.owner_id = server_members.user_id
+      )
+    `);
+  }
+
+  // Add timeout_until column to server_members (idempotent migration)
+  const hasMemberTimeout = db.prepare(
+    "SELECT 1 FROM pragma_table_info('server_members') WHERE name = 'timeout_until'"
+  ).get();
+  if (!hasMemberTimeout) {
+    db.exec("ALTER TABLE server_members ADD COLUMN timeout_until INTEGER");
+  }
+
+  // Create server_bans table (idempotent)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS server_bans (
+      server_id TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      banned_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (server_id, user_id)
+    )
+  `);
 }

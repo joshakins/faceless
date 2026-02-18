@@ -77,7 +77,7 @@ export const api = {
     request<{ code: string }>(`/servers/${serverId}/invites`, { method: 'POST' }),
 
   getMembers: (serverId: string) =>
-    request<{ members: Array<{ id: string; username: string; avatarUrl: string | null }> }>(`/servers/${serverId}/members`),
+    request<{ members: Array<{ id: string; username: string; avatarUrl: string | null; role: string; timeoutUntil: number | null }> }>(`/servers/${serverId}/members`),
 
   deleteServer: (serverId: string) =>
     request<{ ok: boolean }>(`/servers/${serverId}`, { method: 'DELETE' }),
@@ -200,6 +200,22 @@ export const api = {
 
   gifSearch: (query: string, perPage = 24) =>
     request<KlipyResponse>(`/gifs/search?q=${encodeURIComponent(query)}&per_page=${perPage}`),
+
+  // Admin
+  banMember: (serverId: string, userId: string) =>
+    request<{ ok: boolean }>(`/admin/servers/${serverId}/ban/${userId}`, { method: 'POST' }),
+
+  timeoutMember: (serverId: string, userId: string) =>
+    request<{ ok: boolean }>(`/admin/servers/${serverId}/timeout/${userId}`, { method: 'POST' }),
+
+  promoteMember: (serverId: string, userId: string) =>
+    request<{ ok: boolean }>(`/admin/servers/${serverId}/promote/${userId}`, { method: 'POST' }),
+
+  demoteMember: (serverId: string, userId: string) =>
+    request<{ ok: boolean }>(`/admin/servers/${serverId}/demote/${userId}`, { method: 'POST' }),
+
+  deleteMessage: (messageId: string) =>
+    request<{ ok: boolean }>(`/admin/messages/${messageId}`, { method: 'DELETE' }),
 };
 
 // Klipy GIF API types

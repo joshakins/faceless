@@ -71,7 +71,19 @@ function broadcastToConversation(conversationId: string, event: string, data: un
   }
 }
 
-function broadcastToServer(serverId: string, event: string, data: unknown, excludeUserId?: string): void {
+export function sendToUser(userId: string, event: string, data: unknown): void {
+  const sockets = clients.get(userId);
+  if (sockets) {
+    const message = JSON.stringify({ event, data });
+    for (const socket of sockets) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(message);
+      }
+    }
+  }
+}
+
+export function broadcastToServer(serverId: string, event: string, data: unknown, excludeUserId?: string): void {
   const db = getDb();
   const members = db.prepare(
     'SELECT user_id FROM server_members WHERE server_id = ?'
@@ -225,13 +237,22 @@ function handleClientEvent<E extends ClientEventName>(
       if (!channelId) return;
       if (!content?.trim() && !attachmentId && !gifUrl) return;
 
-      // Verify access
-      const access = db.prepare(`
-        SELECT 1 FROM channels c
+      // Verify access and check timeout
+      const membership = db.prepare(`
+        SELECT sm.timeout_until FROM channels c
         JOIN server_members sm ON sm.server_id = c.server_id
         WHERE c.id = ? AND sm.user_id = ?
-      `).get(channelId, socket.userId);
-      if (!access) return;
+      `).get(channelId, socket.userId) as { timeout_until: number | null } | undefined;
+      if (!membership) return;
+
+      const now = Math.floor(Date.now() / 1000);
+      if (membership.timeout_until && membership.timeout_until > now) {
+        socket.send(JSON.stringify({
+          event: 'error',
+          data: { code: 'TIMED_OUT', message: 'You are timed out in this server' },
+        }));
+        return;
+      }
 
       const id = nanoid();
       const createdAt = Math.floor(Date.now() / 1000);

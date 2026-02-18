@@ -15,6 +15,7 @@ import { voiceRouter } from './routes/voice.js';
 import { uploadsRouter, UPLOADS_DIR } from './routes/uploads.js';
 import { gifsRouter } from './routes/gifs.js';
 import { conversationsRouter } from './routes/conversations.js';
+import { adminRouter } from './routes/admin.js';
 import { sessionMiddleware } from './auth/sessions.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -45,6 +46,7 @@ app.use('/api/voice', sessionMiddleware, voiceRouter);
 app.use('/api/uploads', sessionMiddleware, uploadsRouter);
 app.use('/api/gifs', sessionMiddleware, gifsRouter);
 app.use('/api/conversations', sessionMiddleware, conversationsRouter);
+app.use('/api/admin', sessionMiddleware, adminRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

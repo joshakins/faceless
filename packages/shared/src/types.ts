@@ -71,6 +71,8 @@ export interface InviteCode {
   createdAt: number;
 }
 
+export type UserRole = 'admin' | 'user';
+
 export type PresenceStatus = 'online' | 'offline' | 'in-voice';
 
 export interface UserPresence {

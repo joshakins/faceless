@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api } from '../lib/api.js';
 import { wsClient } from '../lib/ws.js';
+import { useAuthStore } from './auth.js';
 
 interface ChatAttachment {
   id: string;
@@ -27,6 +28,7 @@ interface ChatState {
   viewMode: 'servers' | 'dms';
   activeServerId: string | null;
   activeChannelId: string | null;
+  myRole: 'admin' | 'user' | null;
   servers: Array<{ id: string; name: string; ownerId: string }>;
   channels: Array<{ id: string; name: string; type: 'text' | 'voice'; serverId: string }>;
   messages: ChatMessage[];
@@ -47,6 +49,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   viewMode: 'servers',
   activeServerId: null,
   activeChannelId: null,
+  myRole: null,
   servers: [],
   channels: [],
   messages: [],
@@ -65,9 +68,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setActiveServer: async (serverId) => {
-    set({ viewMode: 'servers', activeServerId: serverId, activeChannelId: null, messages: [], channels: [] });
-    const { channels } = await api.getChannels(serverId);
-    set({ channels });
+    set({ viewMode: 'servers', activeServerId: serverId, activeChannelId: null, messages: [], channels: [], myRole: null });
+    const [{ channels }, { members }] = await Promise.all([
+      api.getChannels(serverId),
+      api.getMembers(serverId),
+    ]);
+    const userId = useAuthStore.getState().user?.id;
+    const me = members.find((m) => m.id === userId);
+    set({ channels, myRole: (me?.role as 'admin' | 'user') ?? 'user' });
     // Auto-select first text channel
     const firstText = channels.find((c) => c.type === 'text');
     if (firstText) {
@@ -145,6 +153,45 @@ wsClient.on('message:new', (data) => {
         attachment: data.message.attachment || null,
         gifUrl: data.message.gifUrl || null,
       }],
+    });
+  }
+});
+
+// Listen for message deletions
+wsClient.on('message:deleted', (data) => {
+  const state = useChatStore.getState();
+  if (data.channelId === state.activeChannelId) {
+    useChatStore.setState({
+      messages: state.messages.filter((m) => m.id !== data.messageId),
+    });
+  }
+});
+
+// Listen for role changes
+wsClient.on('member:role-changed', (data) => {
+  const state = useChatStore.getState();
+  if (data.serverId !== state.activeServerId) return;
+  const userId = useAuthStore.getState().user?.id;
+  if (data.userId === userId) {
+    useChatStore.setState({ myRole: data.role as 'admin' | 'user' });
+  }
+});
+
+// Listen for member bans (remove from server if it's us)
+wsClient.on('member:kicked', (data) => {
+  const state = useChatStore.getState();
+  // Remove the server from our list
+  useChatStore.setState({
+    servers: state.servers.filter((s) => s.id !== data.serverId),
+  });
+  // If we were viewing that server, clear it
+  if (state.activeServerId === data.serverId) {
+    useChatStore.setState({
+      activeServerId: null,
+      activeChannelId: null,
+      channels: [],
+      messages: [],
+      myRole: null,
     });
   }
 });

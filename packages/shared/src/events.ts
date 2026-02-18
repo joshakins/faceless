@@ -70,6 +70,28 @@ export interface ServerEvents {
     code: string;
     message: string;
   };
+  'member:banned': {
+    serverId: string;
+    userId: string;
+  };
+  'member:timeout': {
+    serverId: string;
+    userId: string;
+    timeoutUntil: number;
+  };
+  'member:role-changed': {
+    serverId: string;
+    userId: string;
+    role: import('./types.js').UserRole;
+  };
+  'message:deleted': {
+    messageId: string;
+    channelId: string;
+  };
+  'member:kicked': {
+    serverId: string;
+    reason: string;
+  };
 }
 
 // ── Envelope ──

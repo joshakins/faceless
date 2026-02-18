@@ -20,7 +20,7 @@ serversRouter.post('/', (req, res) => {
 
   db.transaction(() => {
     db.prepare('INSERT INTO servers (id, name, owner_id) VALUES (?, ?, ?)').run(id, name, userId);
-    db.prepare('INSERT INTO server_members (server_id, user_id) VALUES (?, ?)').run(id, userId);
+    db.prepare("INSERT INTO server_members (server_id, user_id, role) VALUES (?, ?, 'admin')").run(id, userId);
     // Create default text channel
     db.prepare('INSERT INTO channels (id, server_id, name, type) VALUES (?, ?, ?, ?)').run(nanoid(), id, 'general', 'text');
     // Create default voice channel
@@ -93,6 +93,16 @@ serversRouter.post('/join', (req, res) => {
   }
 
   const db = getDb();
+
+  // Check if user is banned from this server
+  const banned = db.prepare(
+    'SELECT 1 FROM server_bans WHERE server_id = ? AND user_id = ?'
+  ).get(result.serverId, req.user!.id);
+  if (banned) {
+    res.status(403).json({ error: 'You are banned from this server' });
+    return;
+  }
+
   const existing = db.prepare(
     'SELECT 1 FROM server_members WHERE server_id = ? AND user_id = ?'
   ).get(result.serverId, req.user!.id);
@@ -138,7 +148,7 @@ serversRouter.get('/:serverId/members', (req, res) => {
   }
 
   const members = db.prepare(`
-    SELECT u.id, u.username, u.avatar_url as avatarUrl, sm.joined_at as joinedAt
+    SELECT u.id, u.username, u.avatar_url as avatarUrl, sm.role, sm.timeout_until as timeoutUntil, sm.joined_at as joinedAt
     FROM users u
     JOIN server_members sm ON sm.user_id = u.id
     WHERE sm.server_id = ?
