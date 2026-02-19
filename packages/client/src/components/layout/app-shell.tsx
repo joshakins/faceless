@@ -9,6 +9,7 @@ import { useVoiceStore } from '../../stores/voice.js';
 import { ConversationSidebar } from '../dm/conversation-sidebar.js';
 import { DmView } from '../dm/dm-view.js';
 import { AudioSettingsModal } from '../settings/audio-settings-modal.js';
+import { ScreenShareViewer } from '../voice/screen-share-viewer.js';
 
 export function AppShell() {
   const loadServers = useChatStore((s) => s.loadServers);
@@ -19,6 +20,7 @@ export function AppShell() {
   const channels = useChatStore((s) => s.channels);
   const activeChannel = channels.find((c) => c.id === activeChannelId);
   const voiceChannelId = useVoiceStore((s) => s.activeVoiceChannelId);
+  const screenShareParticipantId = useVoiceStore((s) => s.screenShareParticipantId);
 
   useEffect(() => {
     loadServers();
@@ -48,7 +50,9 @@ export function AppShell() {
 
           {/* Main content */}
           <div className="flex flex-col flex-1 min-w-0">
-            {activeChannel && activeChannel.type === 'text' ? (
+            {screenShareParticipantId ? (
+              <ScreenShareViewer />
+            ) : activeChannel && activeChannel.type === 'text' ? (
               <>
                 <div className="h-12 px-4 flex items-center border-b border-gray-700 bg-gray-800 shrink-0">
                   <span className="text-gray-400 mr-2">#</span>

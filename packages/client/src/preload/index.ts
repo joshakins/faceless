@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld('faceless', {
       ipcRenderer.removeListener('open-audio-settings', handler);
     };
   },
+  getDesktopSources: (): Promise<DesktopSource[]> => ipcRenderer.invoke('get-desktop-sources'),
 });

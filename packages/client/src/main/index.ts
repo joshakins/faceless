@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, Menu, desktopCapturer, ipcMain } from 'electron';
 import path from 'path';
 
 let mainWindow: BrowserWindow | null = null;
@@ -71,6 +71,20 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  ipcMain.handle('get-desktop-sources', async () => {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen', 'window'],
+      thumbnailSize: { width: 320, height: 180 },
+      fetchWindowIcons: true,
+    });
+    return sources.map((s) => ({
+      id: s.id,
+      name: s.name,
+      thumbnailDataUrl: s.thumbnail.toDataURL(),
+      appIconDataUrl: s.appIcon?.toDataURL() ?? null,
+    }));
+  });
+
   buildMenu();
   createWindow();
 });
