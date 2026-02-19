@@ -10,6 +10,7 @@ import {
   type RemoteTrack,
 } from 'livekit-client';
 import { api } from '../lib/api.js';
+import { wsClient } from '../lib/ws.js';
 import { useAudioSettingsStore } from './audio-settings.js';
 
 interface VoiceState {
@@ -116,6 +117,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       await room.switchActiveDevice('audiooutput', outputDeviceId).catch(() => {});
     }
 
+    // Notify server so presence is broadcast to all members
+    wsClient.send('voice:join', { channelId });
+
     set({
       room,
       activeVoiceChannelId: channelId,
@@ -133,6 +137,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     if (room) {
       room.disconnect();
     }
+    // Notify server so presence is broadcast to all members
+    wsClient.send('voice:leave', {});
     set({
       room: null,
       activeVoiceChannelId: null,

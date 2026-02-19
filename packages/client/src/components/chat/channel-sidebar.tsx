@@ -209,31 +209,48 @@ export function ChannelSidebar() {
               </button>
             )}
           </div>
-          {voiceChannels.map((ch) => (
-            <div key={ch.id}>
-              <button
-                onClick={() => joinVoice(ch.id)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  if (myRole !== 'admin') return;
-                  setChannelContextMenu({ x: e.clientX, y: e.clientY, channelId: ch.id, channelType: 'voice' });
-                }}
-                className={`w-full px-2 py-1.5 rounded text-left text-sm flex items-center gap-1.5 ${
-                  activeVoiceChannelId === ch.id
-                    ? 'bg-gray-700 text-green-400'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
-                }`}
-              >
-                <span className="text-gray-500">🔊</span>
-                {ch.name}
-              </button>
-              {activeVoiceChannelId === ch.id && (
-                <div className="ml-4">
-                  <ParticipantList />
-                </div>
-              )}
-            </div>
-          ))}
+          {voiceChannels.map((ch) => {
+            // Show who's in this voice channel from presence data
+            const voiceParticipants = members.filter((m) => {
+              const p = presenceMap.get(m.id);
+              return p?.status === 'in-voice' && p.voiceChannelId === ch.id;
+            });
+
+            return (
+              <div key={ch.id}>
+                <button
+                  onClick={() => joinVoice(ch.id)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (myRole !== 'admin') return;
+                    setChannelContextMenu({ x: e.clientX, y: e.clientY, channelId: ch.id, channelType: 'voice' });
+                  }}
+                  className={`w-full px-2 py-1.5 rounded text-left text-sm flex items-center gap-1.5 ${
+                    activeVoiceChannelId === ch.id
+                      ? 'bg-gray-700 text-green-400'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                  }`}
+                >
+                  <span className="text-gray-500">🔊</span>
+                  {ch.name}
+                </button>
+                {activeVoiceChannelId === ch.id ? (
+                  <div className="ml-4">
+                    <ParticipantList />
+                  </div>
+                ) : voiceParticipants.length > 0 ? (
+                  <div className="ml-6 space-y-0.5">
+                    {voiceParticipants.map((m) => (
+                      <div key={m.id} className="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-500">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                        {m.username}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
 
         {/* Member list */}

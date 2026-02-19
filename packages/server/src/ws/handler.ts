@@ -373,6 +373,48 @@ function handleClientEvent<E extends ClientEventName>(
       break;
     }
 
+    case 'voice:join': {
+      const { channelId } = data as ClientEvents['voice:join'];
+      if (!channelId) return;
+
+      // Verify the channel is a voice channel the user has access to
+      const voiceChannel = db.prepare(`
+        SELECT c.server_id FROM channels c
+        JOIN server_members sm ON sm.server_id = c.server_id
+        WHERE c.id = ? AND sm.user_id = ? AND c.type = 'voice'
+      `).get(channelId, socket.userId) as { server_id: string } | undefined;
+      if (!voiceChannel) return;
+
+      presenceTracker.setInVoice(socket.userId, channelId);
+      broadcastToServer(voiceChannel.server_id, 'presence:update', {
+        userId: socket.userId,
+        status: 'in-voice',
+        voiceChannelId: channelId,
+      });
+      break;
+    }
+
+    case 'voice:leave': {
+      const presence = presenceTracker.getPresence(socket.userId);
+      if (presence.status !== 'in-voice' || !presence.voiceChannelId) return;
+
+      // Find the server for this voice channel to broadcast
+      const leavingChannel = db.prepare(`
+        SELECT server_id FROM channels WHERE id = ?
+      `).get(presence.voiceChannelId) as { server_id: string } | undefined;
+
+      presenceTracker.leaveVoice(socket.userId);
+
+      if (leavingChannel) {
+        broadcastToServer(leavingChannel.server_id, 'presence:update', {
+          userId: socket.userId,
+          status: 'online',
+          voiceChannelId: null,
+        });
+      }
+      break;
+    }
+
     default:
       break;
   }
