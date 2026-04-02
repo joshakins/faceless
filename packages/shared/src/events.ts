@@ -29,6 +29,22 @@ export interface ClientEvents {
   'dm:typing': {
     conversationId: string;
   };
+  'music:play': {
+    channelId: string;
+    url: string;
+  };
+  'music:skip': {
+    channelId: string;
+  };
+  'music:stop': {
+    channelId: string;
+  };
+  'music:pause': {
+    channelId: string;
+  };
+  'music:resume': {
+    channelId: string;
+  };
 }
 
 // ── Server → Client ──
@@ -103,6 +119,13 @@ export interface ServerEvents {
     messageId: string;
     channelId: string;
     locked: boolean;
+  };
+  'music:state': {
+    state: import('./types.js').MusicPlayerState;
+  };
+  'music:error': {
+    channelId: string;
+    message: string;
   };
 }
 
