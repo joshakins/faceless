@@ -81,3 +81,23 @@ export interface UserPresence {
   status: PresenceStatus;
   voiceChannelId: string | null;
 }
+
+// ── Music ──
+
+export interface MusicTrack {
+  id: string;
+  url: string;
+  title: string;
+  duration: number;
+  requestedBy: string;
+  requestedByUsername: string;
+}
+
+export interface MusicPlayerState {
+  channelId: string;
+  currentTrack: MusicTrack | null;
+  queue: MusicTrack[];
+  isPlaying: boolean;
+  positionMs: number;
+  positionUpdatedAt: number;
+}

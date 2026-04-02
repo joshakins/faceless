@@ -17,6 +17,7 @@ import { gifsRouter } from './routes/gifs.js';
 import { conversationsRouter } from './routes/conversations.js';
 import { adminRouter } from './routes/admin.js';
 import { sessionMiddleware } from './auth/sessions.js';
+import { queueController } from './music/queue-controller.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -100,6 +101,14 @@ setInterval(() => {
     `).run(srv.id, cutoff);
   }
 }, 60 * 60 * 1000);
+
+// Graceful shutdown — clean up music bot sessions
+const shutdown = async () => {
+  await queueController.shutdownAll();
+  process.exit(0);
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 server.listen(PORT, HOST, () => {
   console.log(`Faceless API server running on ${HOST}:${PORT}`);

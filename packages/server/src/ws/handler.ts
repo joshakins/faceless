@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid';
 import type { WsMessage, ClientEventName, ClientEvents } from '@faceless/shared';
 import { presenceTracker } from './presence.js';
 import { validateSession } from '../auth/sessions.js';
+import { handleMusicCommand } from '../music/command-handler.js';
 
 interface AuthenticatedSocket extends WebSocket {
   userId: string;
@@ -412,6 +413,15 @@ function handleClientEvent<E extends ClientEventName>(
           voiceChannelId: null,
         });
       }
+      break;
+    }
+
+    case 'music:play':
+    case 'music:skip':
+    case 'music:stop':
+    case 'music:pause':
+    case 'music:resume': {
+      handleMusicCommand(socket, event, data as Record<string, unknown>);
       break;
     }
 

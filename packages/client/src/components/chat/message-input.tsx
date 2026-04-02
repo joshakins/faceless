@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useChatStore } from '../../stores/chat.js';
+import { useVoiceStore } from '../../stores/voice.js';
+import { useMusicStore } from '../../stores/music.js';
 import { GifPicker } from './gif-picker.js';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -53,7 +55,30 @@ export function MessageInput() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim() && !pendingFile) return;
+    const trimmed = text.trim();
+    if (!trimmed && !pendingFile) return;
+
+    // Intercept music slash commands when in a voice channel
+    const voiceChannelId = useVoiceStore.getState().activeVoiceChannelId;
+    if (voiceChannelId && trimmed.startsWith('/')) {
+      const music = useMusicStore.getState();
+      let handled = false;
+
+      if (trimmed.startsWith('/play ')) {
+        const query = trimmed.slice(6).trim();
+        if (query) { music.play(voiceChannelId, query); handled = true; }
+      } else if (trimmed === '/skip') { music.skip(voiceChannelId); handled = true; }
+      else if (trimmed === '/stop') { music.stop(voiceChannelId); handled = true; }
+      else if (trimmed === '/pause') { music.pause(voiceChannelId); handled = true; }
+      else if (trimmed === '/resume') { music.resume(voiceChannelId); handled = true; }
+
+      if (handled) {
+        setText('');
+        textInputRef.current?.focus();
+        return;
+      }
+    }
+
     setUploading(true);
     try {
       await sendMessage(text, pendingFile || undefined);

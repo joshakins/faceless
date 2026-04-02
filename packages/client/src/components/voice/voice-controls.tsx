@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useVoiceStore } from '../../stores/voice.js';
 import { useChatStore } from '../../stores/chat.js';
+import { useMusicStore } from '../../stores/music.js';
 import { ScreenSharePicker } from './screen-share-picker.js';
+import { MusicPlayer } from '../music/music-player.js';
+import { PlayInput } from '../music/play-input.js';
 
 export function VoiceControls() {
   const leaveVoice = useVoiceStore((s) => s.leaveVoice);
@@ -18,6 +21,8 @@ export function VoiceControls() {
   const startScreenShare = useVoiceStore((s) => s.startScreenShare);
   const stopScreenShare = useVoiceStore((s) => s.stopScreenShare);
   const [showPicker, setShowPicker] = useState(false);
+  const [showPlayInput, setShowPlayInput] = useState(false);
+  const playerState = useMusicStore((s) => s.playerState);
 
   const someoneElseSharing = screenShareParticipantId !== null && !isScreenSharing;
 
@@ -36,6 +41,11 @@ export function VoiceControls() {
 
   return (
     <>
+      {/* Music player overlay */}
+      {voiceChannelId && playerState?.channelId === voiceChannelId && playerState.currentTrack && (
+        <MusicPlayer channelId={voiceChannelId} />
+      )}
+
       <div className="h-14 bg-gray-800 border-t border-gray-700 flex items-center px-4 gap-3 shrink-0">
         <div className="flex-1 min-w-0">
           <div className="text-green-400 text-xs font-semibold">Voice Connected</div>
@@ -73,6 +83,22 @@ export function VoiceControls() {
         >
           {isScreenSharing ? 'Stop Sharing' : 'Share Screen'}
         </button>
+
+        <div className="relative">
+          <button
+            onClick={() => setShowPlayInput(!showPlayInput)}
+            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              showPlayInput
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            Music
+          </button>
+          {showPlayInput && voiceChannelId && (
+            <PlayInput channelId={voiceChannelId} onClose={() => setShowPlayInput(false)} />
+          )}
+        </div>
 
         <button
           onClick={leaveVoice}
