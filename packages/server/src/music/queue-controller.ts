@@ -120,6 +120,29 @@ class QueueController {
     return session?.currentTrack?.requestedBy ?? null;
   }
 
+  getTrackStream(trackId: string): { streamUrl: string; channelId: string; serverId: string } | null {
+    for (const session of this.sessions.values()) {
+      if (session.currentTrack?.id === trackId) {
+        return {
+          streamUrl: session.currentTrack.url,
+          channelId: session.channelId,
+          serverId: session.serverId,
+        };
+      }
+
+      const queuedTrack = session.queue.find((track) => track.id === trackId);
+      if (queuedTrack) {
+        return {
+          streamUrl: queuedTrack.url,
+          channelId: session.channelId,
+          serverId: session.serverId,
+        };
+      }
+    }
+
+    return null;
+  }
+
   private getOrCreateSession(channelId: string, serverId: string): ChannelMusicSession {
     let session = this.sessions.get(channelId);
     if (session) return session;

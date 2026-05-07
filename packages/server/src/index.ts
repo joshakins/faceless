@@ -16,6 +16,7 @@ import { uploadsRouter, UPLOADS_DIR } from './routes/uploads.js';
 import { gifsRouter } from './routes/gifs.js';
 import { conversationsRouter } from './routes/conversations.js';
 import { adminRouter } from './routes/admin.js';
+import { musicRouter } from './routes/music.js';
 import { sessionMiddleware } from './auth/sessions.js';
 import { queueController } from './music/queue-controller.js';
 
@@ -48,6 +49,7 @@ app.use('/api/uploads', sessionMiddleware, uploadsRouter);
 app.use('/api/gifs', sessionMiddleware, gifsRouter);
 app.use('/api/conversations', sessionMiddleware, conversationsRouter);
 app.use('/api/admin', sessionMiddleware, adminRouter);
+app.use('/api/music', musicRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

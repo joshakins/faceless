@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { wsClient } from '../lib/ws.js';
 import { useVoiceStore } from './voice.js';
 import { useAuthStore } from './auth.js';
+import { getAuthToken } from '../lib/api.js';
+import { useConnectionStore } from './connection.js';
 import type { MusicPlayerState } from '@faceless/shared';
 import { Track, type LocalTrackPublication } from 'livekit-client';
 
@@ -34,6 +36,12 @@ function getCapturedAudioTrack(audio: HTMLAudioElement): MediaStreamTrack | null
   };
   const stream = element.captureStream?.() ?? element.mozCaptureStream?.();
   return stream?.getAudioTracks()[0] ?? null;
+}
+
+function getProxiedAudioUrl(trackId: string): string {
+  const token = getAuthToken();
+  const base = useConnectionStore.getState().getHttpBase();
+  return `${base}/music/stream/${encodeURIComponent(trackId)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 }
 
 function stopMelodyHost(): void {
@@ -72,7 +80,7 @@ async function startMelodyHost(state: MusicPlayerState): Promise<void> {
   const audio = new Audio();
   audio.crossOrigin = 'anonymous';
   audio.preload = 'auto';
-  audio.src = track.url;
+  audio.src = getProxiedAudioUrl(track.id);
 
   melodyHost = {
     trackId: track.id,
