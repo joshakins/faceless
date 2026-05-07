@@ -53,6 +53,10 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
   });
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 class QueueController {
   private sessions = new Map<string, ChannelMusicSession>();
 
@@ -225,7 +229,24 @@ class QueueController {
 
     console.info(`[Melody] Connecting to LiveKit room ${channelId} at ${url}`);
     const room = new Room();
-    await room.connect(url, jwt, { autoSubscribe: false, dynacast: false });
+    let connectError: unknown = null;
+    void room.connect(url, jwt, { autoSubscribe: false, dynacast: false })
+      .then(() => {
+        console.info(`[Melody] LiveKit connect promise resolved for room ${channelId}`);
+      })
+      .catch((err) => {
+        connectError = err;
+        console.error(`[Melody] LiveKit connect failed for room ${channelId}: ${(err as Error).message}`);
+      });
+
+    const connectDeadline = Date.now() + 5_000;
+    while (!room.localParticipant && !connectError && Date.now() < connectDeadline) {
+      await sleep(50);
+    }
+    if (connectError) throw connectError;
+    if (!room.localParticipant) {
+      throw new Error('Timed out waiting for Melody LiveKit local participant');
+    }
     console.info(`[Melody] Connected to LiveKit room ${channelId}`);
 
     const audioSource = new AudioSource(SAMPLE_RATE, NUM_CHANNELS, AUDIO_QUEUE_SIZE_MS);
@@ -234,7 +255,7 @@ class QueueController {
     const publishOptions = new TrackPublishOptions({ source: TrackSource.SOURCE_MICROPHONE });
     console.info(`[Melody] Publishing audio track in channel ${channelId}`);
     void withTimeout(
-      room.localParticipant!.publishTrack(audioTrack, publishOptions),
+      room.localParticipant.publishTrack(audioTrack, publishOptions),
       TRACK_PUBLISH_TIMEOUT_MS,
       `Timed out publishing Melody audio track after ${TRACK_PUBLISH_TIMEOUT_MS}ms`,
     )
