@@ -1,9 +1,8 @@
 import { Router, type IRouter } from 'express';
-import { Readable } from 'stream';
-import type { ReadableStream as WebReadableStream } from 'stream/web';
 import { validateSession } from '../auth/sessions.js';
 import { getDb } from '../db/index.js';
 import { queueController } from '../music/queue-controller.js';
+import { createBrowserAudioStream } from '../music/audio-pipeline.js';
 
 export const musicRouter: IRouter = Router();
 
@@ -30,44 +29,26 @@ musicRouter.get('/stream/:trackId', async (req, res) => {
     return;
   }
 
-  const controller = new AbortController();
-  res.on('close', () => controller.abort());
+  const pipeline = createBrowserAudioStream(stream.streamUrl);
+  let responseStarted = false;
 
-  try {
-    const upstream = await fetch(stream.streamUrl, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        ...(req.headers.range ? { Range: req.headers.range } : {}),
-      },
-    });
+  res.status(200);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Type', 'audio/mpeg');
 
-    if (!upstream.ok && upstream.status !== 206) {
-      res.status(upstream.status).json({ error: `Upstream stream failed: HTTP ${upstream.status}` });
-      return;
+  res.on('close', () => pipeline.cleanup());
+
+  pipeline.ffmpegProcess.on('close', (code) => {
+    if (!responseStarted && code !== 0 && !res.headersSent) {
+      res.status(502).json({ error: 'Could not transcode track stream' });
     }
+  });
 
-    res.status(upstream.status);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Cache-Control', 'no-store');
-
-    for (const header of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
-      const value = upstream.headers.get(header);
-      if (value) res.setHeader(header, value);
-    }
-
-    if (!upstream.body) {
-      res.status(502).json({ error: 'Upstream stream had no body' });
-      return;
-    }
-
-    Readable.fromWeb(upstream.body as unknown as WebReadableStream<Uint8Array>).pipe(res);
-  } catch (err) {
-    if ((err as Error).name === 'AbortError') return;
-    console.warn(`[Melody] Stream proxy failed: ${(err as Error).message}`);
-    if (!res.headersSent) {
-      res.status(502).json({ error: 'Could not proxy track stream' });
-    }
-  }
+  pipeline.pcmStream.once('data', (chunk: Buffer) => {
+    responseStarted = true;
+    res.write(chunk);
+    pipeline.pcmStream.pipe(res);
+  });
 });

@@ -54,6 +54,7 @@ function stopMelodyHost(): void {
 
   melodyHost.audio.pause();
   melodyHost.audio.removeAttribute('src');
+  melodyHost.audio.remove();
   melodyHost.audio.load();
   melodyHost.mediaTrack?.stop();
   melodyHost = null;
@@ -81,6 +82,8 @@ async function startMelodyHost(state: MusicPlayerState): Promise<void> {
   audio.crossOrigin = 'anonymous';
   audio.preload = 'auto';
   audio.src = getProxiedAudioUrl(track.id);
+  audio.volume = 1;
+  document.body.appendChild(audio);
 
   melodyHost = {
     trackId: track.id,
@@ -93,11 +96,15 @@ async function startMelodyHost(state: MusicPlayerState): Promise<void> {
   audio.addEventListener('ended', () => {
     wsClient.send('music:ended', { channelId: state.channelId, trackId: track.id });
   });
+  audio.addEventListener('playing', () => {
+    console.info(`[Melody] Local audio playback started for "${track.title}"`);
+  });
+  audio.addEventListener('error', () => {
+    const message = audio.error ? `${audio.error.code}: ${audio.error.message}` : 'unknown audio error';
+    console.warn(`[Melody] Hosted audio element failed: ${message}`);
+  });
 
   try {
-    if (state.positionMs > 1000) {
-      audio.currentTime = state.positionMs / 1000;
-    }
     await audio.play();
   } catch (err) {
     console.warn(`[Melody] Could not play hosted audio: ${(err as Error).message}`);

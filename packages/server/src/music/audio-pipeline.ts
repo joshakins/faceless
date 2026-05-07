@@ -161,3 +161,47 @@ export function createAudioPipeline(streamUrl: string): AudioPipeline {
 
   return { ffmpegProcess, pcmStream, cleanup };
 }
+
+export function createBrowserAudioStream(streamUrl: string): AudioPipeline {
+  let cleaned = false;
+  let stderr = '';
+
+  const ffmpegProcess = spawn(FFMPEG_PATH, [
+    '-reconnect', '1',
+    '-reconnect_streamed', '1',
+    '-reconnect_delay_max', '5',
+    '-re',
+    '-i', streamUrl,
+    '-vn',
+    '-f', 'mp3',
+    '-codec:a', 'libmp3lame',
+    '-b:a', '160k',
+    '-ar', '48000',
+    '-ac', '2',
+    '-loglevel', 'warning',
+    '-',
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
+
+  const pcmStream = ffmpegProcess.stdout!;
+
+  ffmpegProcess.stderr!.on('data', (chunk: Buffer) => {
+    const text = chunk.toString().trim();
+    stderr += text;
+    if (text) console.warn(`[Melody FFmpeg HTTP] ${text}`);
+  });
+
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    try { pcmStream.removeAllListeners(); } catch {}
+    try { pcmStream.destroy(); } catch {}
+    try { ffmpegProcess.kill('SIGKILL'); } catch {}
+  };
+
+  ffmpegProcess.on('close', (code, signal) => {
+    cleaned = true;
+    console.info(`[Melody FFmpeg HTTP] exited code=${code ?? 'null'} signal=${signal ?? 'null'} stderr=${stderr || '<empty>'}`);
+  });
+
+  return { ffmpegProcess, pcmStream, cleanup };
+}
