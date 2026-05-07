@@ -1,8 +1,37 @@
 import { spawn } from 'child_process';
+import { existsSync } from 'fs';
+import { delimiter, join } from 'path';
 import type { AudioPipeline } from './types.js';
 
-const YTDLP_PATH = process.env.YTDLP_PATH || 'yt-dlp';
-const FFMPEG_PATH = process.env.FFMPEG_PATH || 'ffmpeg';
+function resolveExecutable(envPath: string | undefined, command: string, extraDirs: string[]): string {
+  if (envPath) return envPath;
+
+  const names = process.platform === 'win32'
+    ? [`${command}.exe`, `${command}.cmd`, command]
+    : [command];
+  const dirs = [...(process.env.PATH || '').split(delimiter), ...extraDirs].filter(Boolean);
+
+  for (const dir of dirs) {
+    for (const name of names) {
+      const candidate = join(dir, name);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+
+  return command;
+}
+
+const homeBin = process.env.HOME ? [join(process.env.HOME, '.local', 'bin')] : [];
+const YTDLP_PATH = resolveExecutable(process.env.YTDLP_PATH, 'yt-dlp', [
+  ...homeBin,
+  '/usr/local/bin',
+  '/usr/bin',
+  '/snap/bin',
+]);
+const FFMPEG_PATH = resolveExecutable(process.env.FFMPEG_PATH, 'ffmpeg', [
+  '/usr/local/bin',
+  '/usr/bin',
+]);
 
 const YTDLP_TIMEOUT_MS = 30_000;
 
