@@ -19,11 +19,21 @@ const LIVEKIT_PORT = process.env.LIVEKIT_PORT || '7880';
 const LIVEKIT_URL = process.env.LIVEKIT_URL || '';
 
 const AUTO_LEAVE_MS = 5 * 60 * 1000; // 5 minutes
-const SILENCE_FRAME = new Int16Array(SAMPLES_PER_FRAME); // all zeros = silence
+const AUDIO_QUEUE_SIZE_MS = 2000;
+const SILENCE_FRAME = new Int16Array(SAMPLES_PER_FRAME * NUM_CHANNELS); // all zeros = silence
 
 function getLivekitUrl(): string {
   if (LIVEKIT_URL) return LIVEKIT_URL;
   return `ws://localhost:${LIVEKIT_PORT}`;
+}
+
+function pcmFrameToInt16Array(frameData: Buffer): Int16Array {
+  const samples = SAMPLES_PER_FRAME * NUM_CHANNELS;
+  const frame = new Int16Array(samples);
+  for (let i = 0; i < samples; i++) {
+    frame[i] = frameData.readInt16LE(i * 2);
+  }
+  return frame;
 }
 
 class QueueController {
@@ -197,7 +207,7 @@ class QueueController {
     const room = new Room();
     await room.connect(url, jwt, { autoSubscribe: false, dynacast: false });
 
-    const audioSource = new AudioSource(SAMPLE_RATE, NUM_CHANNELS);
+    const audioSource = new AudioSource(SAMPLE_RATE, NUM_CHANNELS, AUDIO_QUEUE_SIZE_MS);
     const audioTrack = LocalAudioTrack.createAudioTrack('melody-audio', audioSource);
 
     const publishOptions = new TrackPublishOptions({ source: TrackSource.SOURCE_MICROPHONE });
@@ -233,12 +243,20 @@ class QueueController {
     // If stop() increments the generation, our event handlers become no-ops.
     const gen = ++session.streamGeneration;
 
+    pipeline.ffmpegProcess.once('error', (err) => {
+      if (gen !== session.streamGeneration) return;
+      console.error(`[Melody FFmpeg] Failed to start: ${err.message}`);
+      pipeline.pcmStream.destroy(err);
+    });
+
     let buffer = Buffer.alloc(0);
 
-    pipeline.pcmStream.on('data', (chunk: Buffer) => {
+    pipeline.pcmStream.on('data', async (chunk: Buffer) => {
       if (gen !== session.streamGeneration) return;
+      pipeline.pcmStream.pause();
 
-      buffer = Buffer.concat([buffer, chunk]);
+      try {
+        buffer = Buffer.concat([buffer, chunk]);
 
       while (buffer.length >= BYTES_PER_FRAME) {
         const frameData = buffer.subarray(0, BYTES_PER_FRAME);
@@ -247,7 +265,7 @@ class QueueController {
         if (!session.isPlaying) {
           // Paused — send silence to keep the audio track alive
           const frame = new AudioFrame(SILENCE_FRAME, SAMPLE_RATE, NUM_CHANNELS, SAMPLES_PER_FRAME);
-          session.audioSource.captureFrame(frame).catch(() => {});
+          await session.audioSource.captureFrame(frame);
           continue;
         }
 
