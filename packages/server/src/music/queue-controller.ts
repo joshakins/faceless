@@ -213,7 +213,13 @@ class QueueController {
     const audioTrack = LocalAudioTrack.createAudioTrack('melody-audio', audioSource);
 
     const publishOptions = new TrackPublishOptions({ source: TrackSource.SOURCE_MICROPHONE });
-    await room.localParticipant!.publishTrack(audioTrack, publishOptions);
+    void room.localParticipant!.publishTrack(audioTrack, publishOptions)
+      .then((publication) => {
+        console.info(`[Melody] Published audio track ${publication.sid ?? 'unknown sid'} in channel ${channelId}`);
+      })
+      .catch((err) => {
+        console.error(`[Melody] Failed to publish audio track in channel ${channelId}: ${(err as Error).message}`);
+      });
 
     const session: ChannelMusicSession = {
       channelId,
