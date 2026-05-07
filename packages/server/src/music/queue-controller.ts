@@ -258,27 +258,41 @@ class QueueController {
       try {
         buffer = Buffer.concat([buffer, chunk]);
 
-      while (buffer.length >= BYTES_PER_FRAME) {
-        const frameData = buffer.subarray(0, BYTES_PER_FRAME);
-        buffer = buffer.subarray(BYTES_PER_FRAME);
+        while (buffer.length >= BYTES_PER_FRAME) {
+          const frameData = buffer.subarray(0, BYTES_PER_FRAME);
+          buffer = buffer.subarray(BYTES_PER_FRAME);
 
-        if (!session.isPlaying) {
-          // Paused — send silence to keep the audio track alive
-          const frame = new AudioFrame(SILENCE_FRAME, SAMPLE_RATE, NUM_CHANNELS, SAMPLES_PER_FRAME);
+          if (!session.isPlaying) {
+            // Paused — send silence to keep the audio track alive
+            const frame = new AudioFrame(SILENCE_FRAME, SAMPLE_RATE, NUM_CHANNELS, SAMPLES_PER_FRAME);
+            await session.audioSource.captureFrame(frame);
+            continue;
+          }
+
+          const frame = new AudioFrame(
+            pcmFrameToInt16Array(frameData),
+            SAMPLE_RATE,
+            NUM_CHANNELS,
+            SAMPLES_PER_FRAME,
+          );
           await session.audioSource.captureFrame(frame);
-          continue;
         }
-
-        // Copy the PCM data to avoid sharing the underlying buffer with
-        // captureFrame's async processing
-        const int16Copy = new Int16Array(SAMPLES_PER_FRAME);
-        const view = new Int16Array(frameData.buffer, frameData.byteOffset, SAMPLES_PER_FRAME);
-        int16Copy.set(view);
-
-        const frame = new AudioFrame(int16Copy, SAMPLE_RATE, NUM_CHANNELS, SAMPLES_PER_FRAME);
-        session.audioSource.captureFrame(frame).catch(() => {
-          // Source may be closed during skip/stop — ignore
-        });
+      } catch (err) {
+        if (gen === session.streamGeneration && session.pipeline === pipeline) {
+          console.error(`[Melody] Audio stream failed: ${(err as Error).message}`);
+          if (session.currentTrack) {
+            sendToUser(session.currentTrack.requestedBy, 'music:error', {
+              channelId: session.channelId,
+              message: `Could not stream audio: ${(err as Error).message}`,
+            });
+          }
+          this.cleanupPipeline(session);
+          this.advanceQueue(session);
+        }
+      } finally {
+        if (gen === session.streamGeneration && session.pipeline === pipeline && !pipeline.pcmStream.destroyed) {
+          pipeline.pcmStream.resume();
+        }
       }
     });
 
