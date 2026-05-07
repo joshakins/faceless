@@ -10,7 +10,7 @@ export const SAMPLE_RATE = 48000;
 export const NUM_CHANNELS = 1;
 export const FRAME_DURATION_MS = 20;
 export const SAMPLES_PER_FRAME = (SAMPLE_RATE * FRAME_DURATION_MS) / 1000; // 960
-export const BYTES_PER_FRAME = SAMPLES_PER_FRAME * 2; // 1920 (s16le = 2 bytes per sample)
+export const BYTES_PER_FRAME = SAMPLES_PER_FRAME * NUM_CHANNELS * 2; // s16le = 2 bytes per sample
 
 export interface TrackInfo {
   title: string;
