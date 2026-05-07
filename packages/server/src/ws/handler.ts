@@ -420,7 +420,8 @@ function handleClientEvent<E extends ClientEventName>(
     case 'music:skip':
     case 'music:stop':
     case 'music:pause':
-    case 'music:resume': {
+    case 'music:resume':
+    case 'music:ended': {
       handleMusicCommand(socket, event, data as Record<string, unknown>);
       break;
     }

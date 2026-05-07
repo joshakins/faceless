@@ -80,5 +80,14 @@ export function handleMusicCommand(
       }
       break;
     }
+
+    case 'music:ended': {
+      const trackId = data.trackId as string | undefined;
+      const requester = queueController.getCurrentTrackRequester(channelId);
+      if (trackId && requester === socket.userId) {
+        queueController.trackEnded(channelId, trackId);
+      }
+      break;
+    }
   }
 }

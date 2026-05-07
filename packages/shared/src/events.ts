@@ -45,6 +45,10 @@ export interface ClientEvents {
   'music:resume': {
     channelId: string;
   };
+  'music:ended': {
+    channelId: string;
+    trackId: string;
+  };
 }
 
 // ── Server → Client ──
