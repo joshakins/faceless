@@ -33,6 +33,9 @@ const FFMPEG_PATH = resolveExecutable(process.env.FFMPEG_PATH, 'ffmpeg', [
   '/usr/bin',
 ]);
 
+console.info(`[Melody] Using yt-dlp at ${YTDLP_PATH}`);
+console.info(`[Melody] Using ffmpeg at ${FFMPEG_PATH}`);
+
 const YTDLP_TIMEOUT_MS = 30_000;
 
 export const SAMPLE_RATE = 48000;
@@ -119,6 +122,7 @@ export function resolveTrackInfo(url: string): Promise<TrackInfo> {
  */
 export function createAudioPipeline(streamUrl: string): AudioPipeline {
   let cleaned = false;
+  let stderr = '';
 
   const ffmpegProcess = spawn(FFMPEG_PATH, [
     '-reconnect', '1',
@@ -136,7 +140,9 @@ export function createAudioPipeline(streamUrl: string): AudioPipeline {
 
   // Log FFmpeg errors for debugging
   ffmpegProcess.stderr!.on('data', (chunk: Buffer) => {
-    console.error(`[Melody FFmpeg] ${chunk.toString().trim()}`);
+    const text = chunk.toString().trim();
+    stderr += text;
+    if (text) console.error(`[Melody FFmpeg] ${text}`);
   });
 
   const cleanup = () => {
@@ -148,8 +154,9 @@ export function createAudioPipeline(streamUrl: string): AudioPipeline {
   };
 
   // Auto-cleanup on process exit
-  ffmpegProcess.on('close', () => {
+  ffmpegProcess.on('close', (code, signal) => {
     cleaned = true;
+    console.info(`[Melody FFmpeg] exited code=${code ?? 'null'} signal=${signal ?? 'null'} stderr=${stderr || '<empty>'}`);
   });
 
   return { ffmpegProcess, pcmStream, cleanup };

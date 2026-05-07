@@ -67,6 +67,8 @@ class QueueController {
       requestedByUsername: username,
     };
 
+    console.info(`[Melody] Resolved "${track.title}" (${Math.round(track.duration)}s) for channel ${channelId}`);
+
     let session = this.sessions.get(channelId);
 
     // Join room if no session exists
@@ -249,7 +251,17 @@ class QueueController {
       pipeline.pcmStream.destroy(err);
     });
 
+    console.info(`[Melody] Starting stream for "${session.currentTrack.title}" in channel ${session.channelId}`);
+    void this.pumpAudio(session, pipeline, gen);
+  }
+
+  private async pumpAudio(
+    session: ChannelMusicSession,
+    pipeline: NonNullable<ChannelMusicSession['pipeline']>,
+    gen: number,
+  ): Promise<void> {
     let buffer = Buffer.alloc(0);
+    let capturedFrames = 0;
 
     pipeline.pcmStream.on('data', async (chunk: Buffer) => {
       if (gen !== session.streamGeneration) return;
@@ -276,6 +288,10 @@ class QueueController {
             SAMPLES_PER_FRAME,
           );
           await session.audioSource.captureFrame(frame);
+          capturedFrames++;
+          if (capturedFrames === 1) {
+            console.info(`[Melody] Captured first audio frame for "${session.currentTrack?.title ?? 'unknown track'}"`);
+          }
         }
       } catch (err) {
         if (gen === session.streamGeneration && session.pipeline === pipeline) {
@@ -298,18 +314,21 @@ class QueueController {
 
     pipeline.pcmStream.on('end', () => {
       if (gen !== session.streamGeneration) return;
+      console.info(`[Melody] PCM stream ended after ${capturedFrames} audio frames`);
       this.cleanupPipeline(session);
       this.advanceQueue(session);
     });
 
     pipeline.pcmStream.on('error', () => {
       if (gen !== session.streamGeneration) return;
+      console.error(`[Melody] PCM stream errored after ${capturedFrames} audio frames`);
       this.cleanupPipeline(session);
       this.advanceQueue(session);
     });
 
     pipeline.ffmpegProcess.on('close', () => {
       if (gen !== session.streamGeneration) return;
+      console.info(`[Melody] FFmpeg closed after ${capturedFrames} audio frames`);
       // If the process closed but we haven't handled it via stream events,
       // treat it as stream end
       if (session.pipeline === pipeline) {
