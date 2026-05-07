@@ -20,6 +20,7 @@ const LIVEKIT_URL = process.env.LIVEKIT_URL || '';
 
 const AUTO_LEAVE_MS = 5 * 60 * 1000; // 5 minutes
 const AUDIO_QUEUE_SIZE_MS = 2000;
+const TRACK_PUBLISH_TIMEOUT_MS = 5_000;
 const SILENCE_FRAME = new Int16Array(SAMPLES_PER_FRAME * NUM_CHANNELS); // all zeros = silence
 
 function getLivekitUrl(): string {
@@ -34,6 +35,22 @@ function pcmFrameToInt16Array(frameData: Buffer): Int16Array {
     frame[i] = frameData.readInt16LE(i * 2);
   }
   return frame;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      },
+    );
+  });
 }
 
 class QueueController {
@@ -206,14 +223,21 @@ class QueueController {
     const jwt = await token.toJwt();
     const url = getLivekitUrl();
 
+    console.info(`[Melody] Connecting to LiveKit room ${channelId} at ${url}`);
     const room = new Room();
     await room.connect(url, jwt, { autoSubscribe: false, dynacast: false });
+    console.info(`[Melody] Connected to LiveKit room ${channelId}`);
 
     const audioSource = new AudioSource(SAMPLE_RATE, NUM_CHANNELS, AUDIO_QUEUE_SIZE_MS);
     const audioTrack = LocalAudioTrack.createAudioTrack('melody-audio', audioSource);
 
     const publishOptions = new TrackPublishOptions({ source: TrackSource.SOURCE_MICROPHONE });
-    void room.localParticipant!.publishTrack(audioTrack, publishOptions)
+    console.info(`[Melody] Publishing audio track in channel ${channelId}`);
+    void withTimeout(
+      room.localParticipant!.publishTrack(audioTrack, publishOptions),
+      TRACK_PUBLISH_TIMEOUT_MS,
+      `Timed out publishing Melody audio track after ${TRACK_PUBLISH_TIMEOUT_MS}ms`,
+    )
       .then((publication) => {
         console.info(`[Melody] Published audio track ${publication.sid ?? 'unknown sid'} in channel ${channelId}`);
       })
